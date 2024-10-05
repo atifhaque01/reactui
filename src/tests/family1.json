@@ -1,0 +1,134 @@
+{
+    "familyMembers": [
+        {
+            "id": "0",
+            "data": {
+                "title": "Atif Haque",
+                "titleBgColor": "rgb(63, 108, 191)",
+                "titleTextColor": "white",
+                "subtitles": ["Company: ADP", "Born: 2000"],
+                "sex": "M",
+                "badges": []
+            }
+        },
+        {
+            "id": "1",
+            "data": {
+                "title": "Adil Haque",
+                "titleBgColor": "rgb(63, 108, 191)",
+                "titleTextColor": "white",
+                "subtitles": ["Company: Intel", "Born: 1994"],
+                "sex": "M",
+                "badges": []
+            }
+        },
+        {
+            "id": "2",
+            "data": {
+                "title": "Nishat Sultana Haque",
+                "titleBgColor": "rgb(63, 108, 191)",
+                "titleTextColor": "white",
+                "subtitles": ["Company: BIS ", "Born: 1967"],
+                "sex": "F",
+                "badges": []
+            }
+        },
+        {
+            "id": "3",
+            "data": {
+                "title": "Sautul Haque",
+                "titleBgColor": "rgb(63, 108, 191)",
+                "titleTextColor": "white",
+                "subtitles": ["Company: Inovexia", "Born: 1961"],
+                "sex": "M",
+                "badges": []
+            }
+        }
+    ],
+    "familyRelations": [
+        {
+            "relationType": "Parent",
+            "prettyType": "Parent",
+            "toId": "3",
+            "fromId": "0",
+            "isInnerFamily": true
+        },
+        {
+            "relationType": "Child",
+            "prettyType": "Child",
+            "toId": "0",
+            "fromId": "3",
+            "isInnerFamily": true
+        },
+        {
+            "relationType": "Parent",
+            "prettyType": "Parent",
+            "toId": "3",
+            "fromId": "1",
+            "isInnerFamily": true
+        },
+        {
+            "relationType": "Child",
+            "prettyType": "Child",
+            "toId": "1",
+            "fromId": "3",
+            "isInnerFamily": true
+        },
+        {
+            "relationType": "Parent",
+            "prettyType": "Parent",
+            "toId": "2",
+            "fromId": "0",
+            "isInnerFamily": true
+        },
+        {
+            "relationType": "Child",
+            "prettyType": "Child",
+            "toId": "0",
+            "fromId": "2",
+            "isInnerFamily": true
+        },
+        {
+            "relationType": "Parent",
+            "prettyType": "Parent",
+            "toId": "2",
+            "fromId": "1",
+            "isInnerFamily": true
+        },
+        {
+            "relationType": "Child",
+            "prettyType": "Child",
+            "toId": "1",
+            "fromId": "2",
+            "isInnerFamily": true
+        },
+        {
+            "relationType": "Sibling",
+            "prettyType": "Sibling",
+            "toId": "1",
+            "fromId": "0",
+            "isInnerFamily": false
+        },
+        {
+            "relationType": "Sibling",
+            "prettyType": "Sibling",
+            "toId": "0",
+            "fromId": "1",
+            "isInnerFamily": false
+        },
+        {
+            "relationType": "Partner",
+            "prettyType": "Partner",
+            "toId": "2",
+            "fromId": "3",
+            "isInnerFamily": true
+        },
+        {
+            "relationType": "Partner",
+            "prettyType": "Partner",
+            "toId": "3",
+            "fromId": "2",
+            "isInnerFamily": true
+        }
+    ]
+}
