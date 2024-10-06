@@ -5,14 +5,26 @@ import Form from '../CommonComponents/Form';
 
 const SlideInForm: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
+    const [isAddRelationshipOpen, setIsAddRelationshipOpen] = useState(false);
+    const [selectedMember, setSelectedMember] = useState('');
 
     const handleOpen = () => setIsOpen(true);
     const handleClose = () => setIsOpen(false);
-    const handleSubmit = (formData: { [key: string]: any }) => {
+    const handleOpenRel = () => setIsAddRelationshipOpen(true);
+    const handleCloseRel = () => setIsAddRelationshipOpen(false);
+    const handleSubmitMember = (formData: { [key: string]: any }) => {
         // Handle form submission logic here with formData
         console.log(formData);
+        setSelectedMember(formData.name);
+        handleOpenRel();
         handleClose();
     };
+
+    const handleSubmitRelationship = (formData: { [key: string]: any }) => {
+        // Handle form submission logic here with formData
+        console.log(formData);
+        handleCloseRel();
+    }
 
     return (
         <div style={{ textAlign: 'left' }}>
@@ -22,11 +34,22 @@ const SlideInForm: React.FC = () => {
                     formTitle={'Add Family Member'}
                     fields={[
                         { name: 'name', type: 'text', label: 'Name', required: true },
-                        { name: 'gender', type: 'select', label: 'Gender', options:['Male', 'Female'], required: true },
-                        { name: 'dob', type: 'date', label: 'Date of birth', required: true },
-                        { name: 'description', type: 'textarea', label: 'Additional Notes', required: true },
+                        { name: 'gender', type: 'select', label: 'Gender', options:['Male', 'Female'] },
+                        { name: 'dob', type: 'date', label: 'Date of birth' },
+                        { name: 'description', type: 'textarea', label: 'Additional Notes' },
                     ]}
-                    onSubmit={handleSubmit}
+                    onSubmit={handleSubmitMember}
+                    onCancel={handleClose}
+                />
+            </div>
+            <div className={`slide-in-form ${isAddRelationshipOpen ? 'open' : ''}`} style={{ display: 'flex', padding: '10px' }}>
+                <Form
+                    formTitle={`Add Relationship for ${selectedMember}`}
+                    cancelText='Skip'
+                    fields={[
+                        { name: 'gender', type: 'select', label: 'Gender', options:['Male', 'Female'], required: true },
+                    ]}
+                    onSubmit={handleSubmitRelationship}
                     onCancel={handleClose}
                 />
             </div>

@@ -12,23 +12,16 @@ interface Field {
 
 interface FormProps {
     formTitle: string;
+    cancelText?: string;
+    submitText?: string;
     fields: Field[];
     onSubmit: (formData: { [key: string]: any }) => void;
     onCancel: () => void;
 }
 
-export const Form: React.FC<FormProps> = ({ formTitle, fields, onSubmit, onCancel }) => {
+export const Form: React.FC<FormProps> = ({ formTitle, cancelText, submitText, fields, onSubmit, onCancel }) => {
     const [formData, setFormData] = React.useState<{ [key: string]: any }>({});
     const [missingFields, setMissingFields] = React.useState<string[]>([]);
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
-        setMissingFields(missingFields.filter((field) => field !== name));
-        setFormData({
-            ...formData,
-            [name]: value,
-        });
-    };
 
     const handleKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
         if (event.key === 'Enter') {
@@ -63,8 +56,18 @@ export const Form: React.FC<FormProps> = ({ formTitle, fields, onSubmit, onCance
         onCancel();
     };
 
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setMissingFields(missingFields.filter((field) => field !== name));
+        setFormData({
+            ...formData,
+            [name]: value,
+        });
+    };
+
     const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const { name, value } = e.target;
+        setMissingFields(missingFields.filter((field) => field !== name));
         setFormData({
             ...formData,
             [name]: value,
@@ -73,6 +76,7 @@ export const Form: React.FC<FormProps> = ({ formTitle, fields, onSubmit, onCance
 
     const handleTextAreaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const { name, value } = e.target;
+        setMissingFields(missingFields.filter((field) => field !== name));
         setFormData({
             ...formData,
             [name]: value,
@@ -94,7 +98,7 @@ export const Form: React.FC<FormProps> = ({ formTitle, fields, onSubmit, onCance
                             id={field.name}
                             onChange={handleSelectChange} required={field.required || false}
                             className={field?.required && missingFields.includes(field.name) ? 'form-input-missing' : 'form-input'}
-                            value={formData[field.name] || ''}
+                            value={''}
                         >
                             {field.options.map((option) => (
                                 <option key={option} value={option}>
@@ -127,10 +131,10 @@ export const Form: React.FC<FormProps> = ({ formTitle, fields, onSubmit, onCance
 
             <div className="form-group">
                 <div className="form-label">
-                    <AppButton label={'Submit'} onClick={handleSubmit} primary={true} />
+                    <AppButton label={submitText || 'Submit'} onClick={handleSubmit} primary={true} />
                 </div>
                 <div>
-                    <AppButton label={'Cancel'} onClick={handleCancel} />
+                    <AppButton label={cancelText || 'Cancel'} onClick={handleCancel} />
                 </div>
             </div>
         </form>
