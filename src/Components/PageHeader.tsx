@@ -1,10 +1,11 @@
 import React from 'react';
-// import './PageHeader.css'; // Assuming you will add some styles
 
 export const PageHeader: React.FC = () => {
     return (
-        <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'green', padding: '10px' }}>
-            <div className="logo" style={{ color: 'white' }}>Family Tree</div>
+        <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'green' }}>
+            <div className="logo" style={{ display: 'flex', alignItems: 'center', color: 'white' }}>
+                <img src={process.env.PUBLIC_URL + '/logo512.png'} alt="Family Tree" style={{ height: '80px', marginRight: '10px' }} />
+            </div>
             <nav style={{ flex: 1 }}>
                 <ul className="nav-links" style={{ display: 'flex', justifyContent: 'space-around', listStyle: 'none', margin: 0, padding: 0 }}>
                     <li><a href="/" style={{ color: 'white', textDecoration: 'none' }}>Home</a></li>
