@@ -1,9 +1,11 @@
 import React from 'react';
 import './Form.css';
 import AppButton from './AppButton';
+import { RawFamilyMember } from '../utils';
 
 interface Field {
     options?: string[];
+    complexOptions?: RawFamilyMember[];
     name: string;
     type: string;
     label: string;
@@ -17,11 +19,12 @@ interface FormProps {
     fields: Field[];
     onSubmit: (formData: { [key: string]: any }) => void;
     onCancel: () => void;
+    missingFields: string[];
+    setMissingFields: (fields: string[]) => void;
 }
 
-export const Form: React.FC<FormProps> = ({ formTitle, cancelText, submitText, fields, onSubmit, onCancel }) => {
+export const Form: React.FC<FormProps> = ({ formTitle, cancelText, submitText, fields, onSubmit, onCancel, missingFields, setMissingFields }) => {
     const [formData, setFormData] = React.useState<{ [key: string]: any }>({});
-    const [missingFields, setMissingFields] = React.useState<string[]>([]);
 
     const handleKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
         if (event.key === 'Enter') {
@@ -29,20 +32,19 @@ export const Form: React.FC<FormProps> = ({ formTitle, cancelText, submitText, f
         }
     };
 
-
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        let missingFields: string[] = [];
+        let preMissingFields: string[] = [];
 
         // Check for required fields
         for (const field of fields) {
             if (field.required && !formData[field.name]) {
-                missingFields = [...missingFields, field.name];
+                preMissingFields = [...preMissingFields, field.name];
             }
         }
 
-        if (missingFields.length) {
-            setMissingFields(missingFields);
+        if (preMissingFields.length) {
+            setMissingFields(preMissingFields);
             return;
         }
 
@@ -105,6 +107,20 @@ export const Form: React.FC<FormProps> = ({ formTitle, cancelText, submitText, f
                             {field.options.map((option) => (
                                 <option key={option} value={option}>
                                     {option}
+                                </option>
+                            ))}
+                        </select>
+                    ) : field.type === 'select' && field.complexOptions ? (
+                        <select
+                            name={field.name}
+                            id={field.name}
+                            onChange={handleSelectChange} required={field.required || false}
+                            className={field?.required && missingFields.includes(field.name) ? 'form-input-missing' : 'form-input'}
+                            value={''}
+                        >
+                            {field.complexOptions.map((option) => (
+                                <option key={option.id} value={option.id}>
+                                    {option.data.title}
                                 </option>
                             ))}
                         </select>

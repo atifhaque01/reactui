@@ -2,15 +2,17 @@ import React, { useState } from 'react';
 import './SlideInForm.css'; // Make sure to create and style this CSS file
 import AppButton from '../CommonComponents/AppButton';
 import Form from '../CommonComponents/Form';
+import { RawFamilyMember } from '../utils';
 
 interface SlideInFormProps {
-    members: any[];
+    members: RawFamilyMember[];
 }
 
 const SlideInForm: React.FC<SlideInFormProps> = ({ members }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isAddRelationshipOpen, setIsAddRelationshipOpen] = useState(false);
     const [selectedMember, setSelectedMember] = useState('');
+    const [missingFields, setMissingFields] = React.useState<string[]>([]);
 
     const handleOpen = () => setIsOpen(true);
     const handleClose = () => setIsOpen(false);
@@ -44,17 +46,21 @@ const SlideInForm: React.FC<SlideInFormProps> = ({ members }) => {
                     ]}
                     onSubmit={handleSubmitMember}
                     onCancel={handleClose}
+                    missingFields={missingFields}
+                    setMissingFields={setMissingFields}
                 />
             </div>
             <div className={`slide-in-form ${isAddRelationshipOpen ? 'open' : ''}`} style={{ display: 'flex', padding: '10px' }}>
                 <Form
-                    formTitle={`Add Relationship for ${selectedMember}`}
+                    formTitle={`Add Relationship(s) for ${selectedMember}`}
                     cancelText='Skip'
                     fields={[
-                        { name: 'relationships', type: 'select', label: 'Add Relationships', options: members },
+                        { name: 'relationships', type: 'select', label: 'Add Relationships', complexOptions: members },
                     ]}
                     onSubmit={handleSubmitRelationship}
                     onCancel={handleCloseRel}
+                    missingFields={missingFields}
+                    setMissingFields={setMissingFields}
                 />
             </div>
         </div>

@@ -32,7 +32,7 @@ export default function App() {
         <PageHeader />
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '5px' }}>
-        <SlideInForm members={['Atif', 'Adil']} />
+        <SlideInForm members={familyMembers} />
       </div>
       <div>
         <TreeConstructor
