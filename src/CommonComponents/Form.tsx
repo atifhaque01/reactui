@@ -46,7 +46,9 @@ export const Form: React.FC<FormProps> = ({ formTitle, cancelText, submitText, f
             return;
         }
 
-        onSubmit(formData);
+        const finalFormData = { ...formData };
+        setFormData({});
+        onSubmit(finalFormData);
     };
 
     const handleCancel = (e: React.MouseEvent) => {

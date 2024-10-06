@@ -3,7 +3,11 @@ import './SlideInForm.css'; // Make sure to create and style this CSS file
 import AppButton from '../CommonComponents/AppButton';
 import Form from '../CommonComponents/Form';
 
-const SlideInForm: React.FC = () => {
+interface SlideInFormProps {
+    members: any[];
+}
+
+const SlideInForm: React.FC<SlideInFormProps> = ({ members }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isAddRelationshipOpen, setIsAddRelationshipOpen] = useState(false);
     const [selectedMember, setSelectedMember] = useState('');
@@ -34,7 +38,7 @@ const SlideInForm: React.FC = () => {
                     formTitle={'Add Family Member'}
                     fields={[
                         { name: 'name', type: 'text', label: 'Name', required: true },
-                        { name: 'gender', type: 'select', label: 'Gender', options:['Male', 'Female'] },
+                        { name: 'gender', type: 'select', label: 'Gender', options: ['Male', 'Female'] },
                         { name: 'dob', type: 'date', label: 'Date of birth' },
                         { name: 'description', type: 'textarea', label: 'Additional Notes' },
                     ]}
@@ -47,10 +51,10 @@ const SlideInForm: React.FC = () => {
                     formTitle={`Add Relationship for ${selectedMember}`}
                     cancelText='Skip'
                     fields={[
-                        { name: 'gender', type: 'select', label: 'Gender', options:['Male', 'Female'], required: true },
+                        { name: 'relationships', type: 'select', label: 'Add Relationships', options: members },
                     ]}
                     onSubmit={handleSubmitRelationship}
-                    onCancel={handleClose}
+                    onCancel={handleCloseRel}
                 />
             </div>
         </div>
