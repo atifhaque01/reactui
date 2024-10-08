@@ -42,7 +42,7 @@ const SlideInForm: React.FC<SlideInFormProps> = ({ members }) => {
                         { name: 'name', type: 'text', label: 'Name', required: true },
                         { name: 'gender', type: 'select', label: 'Gender', options: ['Male', 'Female'] },
                         { name: 'dob', type: 'date', label: 'Date of birth' },
-                        { name: 'description', type: 'textarea', label: 'Additional Notes' },
+                        { name: 'description', type: 'textarea', label: 'Additional Info' },
                     ]}
                     onSubmit={handleSubmitMember}
                     onCancel={handleClose}

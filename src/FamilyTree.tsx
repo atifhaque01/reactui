@@ -24,6 +24,7 @@ type FamilyTreeProps = {
     familyMembers: FamilyMembers;
     familyRelations: FamilyRelations;
     rootMember: FamilyMember;
+    setRootId: (id: string) => void;
     onDoubleClick?: (sfdcId: string) => void;
 };
 
@@ -31,9 +32,10 @@ export const FamilyTree = ({
     familyMembers: rawFamilyMembers,
     familyRelations,
     rootMember,
+    setRootId,
     onDoubleClick
 }: FamilyTreeProps) => {
-    const [selectedNode, setSelectedNode] = useState<string | null>(rootMember.id);
+    const selectedNode = rootMember.id;
     const [hiddenNodesIds, setHiddenNodesIds] = useState<string[]>([]);
 
     const familyMembersWithVisibility = Object.fromEntries(
@@ -78,7 +80,7 @@ export const FamilyTree = ({
                     hideAttribution: true
                 }}
                 onNodeClick={(_, node) => {
-                    setSelectedNode(node.id);
+                    setRootId(node.id);
                 }}
                 onNodeDoubleClick={(_, node) => onDoubleClick && onDoubleClick(node.id)}
             >
