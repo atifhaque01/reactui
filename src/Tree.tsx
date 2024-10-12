@@ -10,7 +10,7 @@ interface TreeProps {
     members: RawFamilyMember[];
     relations: RawFamilyRelation[];
     rootId: string;
-    setRootId: (id: string) => void;
+    setRootId: (_id: string) => void;
 }
 
 export const Tree: React.FC<TreeProps> = ({ members, relations, rootId, setRootId }) => {

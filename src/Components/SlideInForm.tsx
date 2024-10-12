@@ -40,7 +40,7 @@ const SlideInForm: React.FC<SlideInFormProps> = ({ members }) => {
                     formTitle={'Add Family Member'}
                     fields={[
                         { name: 'name', type: 'text', label: 'Name', required: true },
-                        { name: 'gender', type: 'select', label: 'Gender', options: ['Male', 'Female'] },
+                        { name: 'gender', type: 'select', label: 'Gender', options: ['Male', 'Female'], required: true },
                         { name: 'dob', type: 'date', label: 'Date of birth' },
                         { name: 'description', type: 'textarea', label: 'Additional Info' },
                     ]}
@@ -55,7 +55,7 @@ const SlideInForm: React.FC<SlideInFormProps> = ({ members }) => {
                     formTitle={`Add Relationship(s) for ${selectedMember}`}
                     cancelText='Skip'
                     fields={[
-                        { name: 'relationships', type: 'select', label: 'Add Relationships', complexOptions: members },
+                        { name: 'relationships', type: 'select', label: '', complexOptions: members, relationshipOptions: ['Parent', 'Child', 'Spouse'] },
                     ]}
                     onSubmit={handleSubmitRelationship}
                     onCancel={handleCloseRel}

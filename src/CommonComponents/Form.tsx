@@ -6,6 +6,7 @@ import { RawFamilyMember } from '../utils';
 interface Field {
     options?: string[];
     complexOptions?: RawFamilyMember[];
+    relationshipOptions?: string[];
     name: string;
     type: string;
     label: string;
@@ -25,6 +26,7 @@ interface FormProps {
 
 export const Form: React.FC<FormProps> = ({ formTitle, cancelText, submitText, fields, onSubmit, onCancel, missingFields, setMissingFields }) => {
     const [formData, setFormData] = React.useState<{ [key: string]: any }>({});
+    const [missingBanner, setMissingBanner] = React.useState(false);
 
     const handleKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
         if (event.key === 'Enter') {
@@ -35,6 +37,7 @@ export const Form: React.FC<FormProps> = ({ formTitle, cancelText, submitText, f
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         let preMissingFields: string[] = [];
+        setMissingBanner(false);
 
         // Check for required fields
         for (const field of fields) {
@@ -45,7 +48,17 @@ export const Form: React.FC<FormProps> = ({ formTitle, cancelText, submitText, f
 
         if (preMissingFields.length) {
             setMissingFields(preMissingFields);
+            setMissingBanner(true);
             return;
+        }
+
+        for (const field of fields) {
+            if (field.complexOptions && field.relationshipOptions) {
+                if (formData?.relationships?.length !== formData?.relationshipType?.length) {
+                    setMissingBanner(true);
+                    return;
+                }
+            }
         }
 
         const finalFormData = { ...formData };
@@ -56,6 +69,7 @@ export const Form: React.FC<FormProps> = ({ formTitle, cancelText, submitText, f
     const handleCancel = (e: React.MouseEvent) => {
         e.preventDefault();
         setFormData({});
+        setMissingBanner(false);
         console.log(formData);
         onCancel();
     };
@@ -63,6 +77,7 @@ export const Form: React.FC<FormProps> = ({ formTitle, cancelText, submitText, f
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
         setMissingFields(missingFields.filter((field) => field !== name));
+        setMissingBanner(false);
         setFormData({
             ...formData,
             [name]: value,
@@ -71,7 +86,11 @@ export const Form: React.FC<FormProps> = ({ formTitle, cancelText, submitText, f
 
     const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const { name, value } = e.target;
+        if (value === 'Please Select') {
+            return;
+        }
         setMissingFields(missingFields.filter((field) => field !== name));
+        setMissingBanner(false);
         setFormData({
             ...formData,
             [name]: value,
@@ -81,6 +100,7 @@ export const Form: React.FC<FormProps> = ({ formTitle, cancelText, submitText, f
     const handleTextAreaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const { name, value } = e.target;
         setMissingFields(missingFields.filter((field) => field !== name));
+        setMissingBanner(false);
         setFormData({
             ...formData,
             [name]: value,
@@ -102,28 +122,49 @@ export const Form: React.FC<FormProps> = ({ formTitle, cancelText, submitText, f
                             id={field.name}
                             onChange={handleSelectChange} required={field.required || false}
                             className={field?.required && missingFields.includes(field.name) ? 'form-input-missing' : 'form-input'}
-                            value={''}
                         >
+                            <option key={'Please Select'} value={'Please Select'}>
+                                {'Please Select'}
+                            </option>
                             {field.options.map((option) => (
                                 <option key={option} value={option}>
                                     {option}
                                 </option>
                             ))}
                         </select>
-                    ) : field.type === 'select' && field.complexOptions ? (
-                        <select
-                            name={field.name}
-                            id={field.name}
-                            onChange={handleSelectChange} required={field.required || false}
-                            className={field?.required && missingFields.includes(field.name) ? 'form-input-missing' : 'form-input'}
-                            value={''}
-                        >
-                            {field.complexOptions.map((option) => (
-                                <option key={option.id} value={option.id}>
-                                    {option.data.title}
+                    ) : field.type === 'select' && field.complexOptions?.length && field.relationshipOptions?.length ? (
+                        <div>
+                            <select
+                                name={field.name}
+                                id={field.name}
+                                onChange={handleSelectChange} required={field.required || false}
+                                className="form-label-spcl-select"
+                            >
+                                <option key={'Please Select'} value={'Please Select'}>
+                                    {'Please Select'}
                                 </option>
-                            ))}
-                        </select>
+                                {field.complexOptions.map((option) => (
+                                    <option key={option.id} value={option.id}>
+                                        {option.data.title}
+                                    </option>
+                                ))}
+                            </select>
+                            <select
+                                name={'relationshipType'}
+                                id={'relationshipType'}
+                                onChange={handleSelectChange} required={field.required || false}
+                                className="form-input"
+                            >
+                                <option key={'Please Select'} value={'Please Select'}>
+                                    {'Please Select'}
+                                </option>
+                                {field.relationshipOptions.map((option) => (
+                                    <option key={option} value={option}>
+                                        {option}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                     ) : field.type === 'textarea' ? (
                         <textarea
                             name={field.name}
@@ -146,6 +187,7 @@ export const Form: React.FC<FormProps> = ({ formTitle, cancelText, submitText, f
                     )}
                 </div>
             ))}
+            {missingBanner && <div className="missing-banner">Please Fill all required data</div>}
 
             <div className="form-group">
                 <div className="form-label">
