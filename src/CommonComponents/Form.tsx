@@ -22,7 +22,7 @@ interface FormProps {
     onCancel: () => void;
     missingFields: string[];
     setMissingFields: (fields: string[]) => void;
-    setFamilyMembers?: (members: RawFamilyMember[]) => void;
+    // setFamilyMembers?: (members: RawFamilyMember[]) => void;
     addRelationship?: () => void;
 }
 
@@ -36,7 +36,7 @@ export const Form: React.FC<FormProps> = (
         onCancel,
         missingFields,
         setMissingFields,
-        setFamilyMembers,
+        // setFamilyMembers,
         addRelationship
     }) => {
     const [formData, setFormData] = React.useState<{ [key: string]: any }>({});

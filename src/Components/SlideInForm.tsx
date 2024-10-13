@@ -14,7 +14,6 @@ const SlideInForm: React.FC<SlideInFormProps> = ({ members }) => {
     const [isAddRelationshipOpen, setIsAddRelationshipOpen] = useState(false);
     const [selectedMember, setSelectedMember] = useState<RawFamilyMember | null>(null);
     const [missingFields, setMissingFields] = React.useState<string[]>([]);
-    const [familyMembers, setFamilyMembers] = React.useState<RawFamilyMember[]>(members);
     const [relationshipFields, setRelationshipFields] = React.useState<
         {
             name: string;
@@ -51,7 +50,7 @@ const SlideInForm: React.FC<SlideInFormProps> = ({ members }) => {
         setRelationshipFields([...relationshipFields, {
             name: `relationship${relationshipCounter}`,
             type: 'select', label: '',
-            complexOptions: familyMembers,
+            complexOptions: members,
             relationshipOptions: ['Parent', 'Child', 'Spouse'],
             required: true
         }]);
@@ -91,7 +90,7 @@ const SlideInForm: React.FC<SlideInFormProps> = ({ members }) => {
                     onCancel={handleCloseRel}
                     missingFields={missingFields}
                     setMissingFields={setMissingFields}
-                    setFamilyMembers={setFamilyMembers}
+                    // setFamilyMembers={setFamilyMembers}
                     addRelationship={addRelationship}
                 />
             </div>
