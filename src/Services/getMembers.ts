@@ -9,10 +9,7 @@ export async function getAllMembers(): Promise<RawFamilyMember[]> {
             "title": "Atif Haque",
             "titleBgColor": "rgb(63, 108, 191)",
             "titleTextColor": "white",
-            "subtitles": [
-                "Company: ADP",
-                "Born: 2000"
-            ],
+            "subtitles": "Company: ADP",
             "sex": "M",
             "badges": []
         }

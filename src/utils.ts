@@ -3,18 +3,18 @@ import { FamilyMemberNodeData } from "./FamilyComponents/FamilyMemberNode";
 import { FamilyMember, FamilyMembers, FamilyRelations, RelationTypes } from "./tree/types";
 
 export type RawFamilyMember = {
-    id: string;
+    id?: string;
     data: {
-        badges: {
+        badges?: {
             bgColor: string;
             label: string;
             textColor: string;
         }[];
         sex: "M" | "F";
-        subtitles: string[];
+        subtitles: string;
         title: string;
-        titleBgColor: string;
-        titleTextColor: string;
+        titleBgColor?: string;
+        titleTextColor?: string;
         imageUrl?: string | null;
     };
 };

@@ -62,7 +62,7 @@ export type FamilyMember = {
         titleBgColor: string;
         titleTextColor: string;
         sex: "M" | "F";
-        subtitles: string[];
+        subtitles: string;
         isHidden: boolean;
         imageUrl?: string;
         onVisibilityChange: (isVisible: boolean) => void;

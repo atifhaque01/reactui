@@ -9,14 +9,13 @@ import "reactflow/dist/style.css";
 interface TreeProps {
     members: RawFamilyMember[];
     relations: RawFamilyRelation[];
-    rootId: string;
-    setRootId: (_id: string) => void;
 }
 
-export const Tree: React.FC<TreeProps> = ({ members, relations, rootId, setRootId }) => {
+export const Tree: React.FC<TreeProps> = ({ members, relations }) => {
     const [familyMembersRecord, familyRelationsRecord] = buildFamilyAndRelations(members as RawFamilyMember[],
         relations as RawFamilyRelation[]);
-    const rootMember = rootId ? familyMembersRecord[rootId] : Object.values(familyMembersRecord)[0];
+    const [rootId, setRootId] = React.useState(Object.values(familyMembersRecord)[0].id);
+    const rootMember = familyMembersRecord[rootId];
     return <React.StrictMode>
         <ReactFlowProvider>
             <ReactFlowProvider>

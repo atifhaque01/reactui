@@ -6,7 +6,7 @@ import "./FamilyMemberNode.css";
 import { BadgeData } from "../tree/types";
 
 export type FamilyMemberNodeData = {
-    subtitles: string[];
+    subtitles: string;
     badges: BadgeData[];
     title: string;
     titleBgColor: string;
@@ -88,14 +88,7 @@ function FamilyMemberNodeUI({ id, data }: NodeProps<FamilyMemberNodeData>) {
                 </div>
                 <div className="content">
                     <div className="text-content">
-                        {data.subtitles.map((subtitle, index) => {
-                            return (
-                                <div key={index}>
-                                    <span className="subtitle-key">{subtitle}</span>
-                                </div>
-                            );
-                        })}
-
+                        {data.subtitles}
                         {data.relationToSelected && <div className="relation">relation: {data.relationToSelected}</div>}
                     </div>
                     {profileImg && <img src={profileImg} alt={data.sex} width="40px" height="40px" />}

@@ -24,7 +24,7 @@ type FamilyTreeProps = {
     familyMembers: FamilyMembers;
     familyRelations: FamilyRelations;
     rootMember: FamilyMember;
-    setRootId: (_id: string) => void;
+    setRootId: (id: string) => void;
     onDoubleClick?: (sfdcId: string) => void;
 };
 

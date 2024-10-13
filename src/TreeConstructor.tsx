@@ -8,14 +8,11 @@ interface TreeConstructorProps {
   familyRelations: RawFamilyRelation[];
 }
 export const TreeConstructor: React.FC<TreeConstructorProps> = ({ familyMembers, familyRelations }) => {
-  const [rootId, setRootId] = React.useState<string>("0");
   return (
     <div>
       <Tree
         members={familyMembers}
         relations={familyRelations}
-        rootId={rootId}
-        setRootId={setRootId}
       />
     </div>
   );

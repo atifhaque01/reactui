@@ -22,9 +22,23 @@ interface FormProps {
     onCancel: () => void;
     missingFields: string[];
     setMissingFields: (fields: string[]) => void;
+    setFamilyMembers?: (members: RawFamilyMember[]) => void;
+    addRelationship?: () => void;
 }
 
-export const Form: React.FC<FormProps> = ({ formTitle, cancelText, submitText, fields, onSubmit, onCancel, missingFields, setMissingFields }) => {
+export const Form: React.FC<FormProps> = (
+    {
+        formTitle,
+        cancelText,
+        submitText,
+        fields,
+        onSubmit,
+        onCancel,
+        missingFields,
+        setMissingFields,
+        setFamilyMembers,
+        addRelationship
+    }) => {
     const [formData, setFormData] = React.useState<{ [key: string]: any }>({});
     const [missingBanner, setMissingBanner] = React.useState(false);
 
@@ -53,8 +67,8 @@ export const Form: React.FC<FormProps> = ({ formTitle, cancelText, submitText, f
         }
 
         for (const field of fields) {
-            if (field.complexOptions && field.relationshipOptions) {
-                if (formData?.relationships?.length !== formData?.relationshipType?.length) {
+            if (field?.complexOptions && field.relationshipOptions) {
+                if (!formData?.relationships || !formData?.relationshipType) {
                     setMissingBanner(true);
                     return;
                 }
@@ -69,6 +83,7 @@ export const Form: React.FC<FormProps> = ({ formTitle, cancelText, submitText, f
     const handleCancel = (e: React.MouseEvent) => {
         e.preventDefault();
         setFormData({});
+        setMissingFields([]);
         setMissingBanner(false);
         console.log(formData);
         onCancel();
@@ -113,15 +128,41 @@ export const Form: React.FC<FormProps> = ({ formTitle, cancelText, submitText, f
     return (
         <form className="form-container" style={{ padding: '10px' }} onKeyDown={handleKeyDown}>
             <h2>{formTitle}</h2>
+            {fields[0]?.complexOptions && <div className="form-group">
+                <h3 className="form-label">Name</h3>
+                <h3 className='form-right-header'>Relationship</h3>
+            </div>}
             {fields.map((field) => (
                 <div className="form-group" key={field.name}>
-                    <label htmlFor={field.name} className="form-label">{field.label}</label>
+                    {!field?.complexOptions &&
+                        <label htmlFor={field.name} className="form-label">{field.label}</label>
+                    }
+                    {field?.complexOptions &&
+                        <select
+                            name={field.name}
+                            id={field.name}
+                            onChange={handleSelectChange} required={field.required || false}
+                            className="form-label-spcl-select"
+                            value={formData[field.name] || 'Please Select'}
+                        >
+                            <option key={'Please Select'} value={'Please Select'}>
+                                {'Please Select'}
+                            </option>
+                            {field?.complexOptions.map((option) => (
+                                <option key={option.id} value={option.id}>
+                                    {option.data.title}
+                                </option>
+                            ))}
+                        </select>
+                    }
                     {field.type === 'select' && field.options ? (
                         <select
                             name={field.name}
                             id={field.name}
                             onChange={handleSelectChange} required={field.required || false}
-                            className={field?.required && missingFields.includes(field.name) ? 'form-input-missing' : 'form-input'}
+                            value={formData[field.name] || 'Please Select'}
+                            className={field?.required && missingFields.includes(field.name) ?
+                                'form-input-missing' : 'form-input'}
                         >
                             <option key={'Please Select'} value={'Please Select'}>
                                 {'Please Select'}
@@ -132,23 +173,9 @@ export const Form: React.FC<FormProps> = ({ formTitle, cancelText, submitText, f
                                 </option>
                             ))}
                         </select>
-                    ) : field.type === 'select' && field.complexOptions?.length && field.relationshipOptions?.length ? (
+                    ) : field.type === 'select' &&
+                        field?.complexOptions && field.relationshipOptions?.length ? (
                         <div>
-                            <select
-                                name={field.name}
-                                id={field.name}
-                                onChange={handleSelectChange} required={field.required || false}
-                                className="form-label-spcl-select"
-                            >
-                                <option key={'Please Select'} value={'Please Select'}>
-                                    {'Please Select'}
-                                </option>
-                                {field.complexOptions.map((option) => (
-                                    <option key={option.id} value={option.id}>
-                                        {option.data.title}
-                                    </option>
-                                ))}
-                            </select>
                             <select
                                 name={'relationshipType'}
                                 id={'relationshipType'}
@@ -188,7 +215,16 @@ export const Form: React.FC<FormProps> = ({ formTitle, cancelText, submitText, f
                 </div>
             ))}
             {missingBanner && <div className="missing-banner">Please Fill all required data</div>}
-
+            {fields[0]?.complexOptions &&
+                <div className="form-group">
+                    <div className="form-label">
+                        <AppButton label={'+ Add'} onClick={handleSubmit} primary={true} />
+                    </div>
+                    <div>
+                        <AppButton label={'- RemoveLast'} onClick={handleCancel} />
+                    </div>
+                </div>
+            }
             <div className="form-group">
                 <div className="form-label">
                     <AppButton label={submitText || 'Submit'} onClick={handleSubmit} primary={true} />
