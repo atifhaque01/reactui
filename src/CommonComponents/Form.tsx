@@ -22,8 +22,9 @@ interface FormProps {
     onCancel: () => void;
     missingFields: string[];
     setMissingFields: (fields: string[]) => void;
-    // setFamilyMembers?: (members: RawFamilyMember[]) => void;
+    setFamilyMembers?: (members: RawFamilyMember[]) => void;
     addRelationship?: () => void;
+    removeRelationship?: () => void;
 }
 
 export const Form: React.FC<FormProps> = (
@@ -36,8 +37,9 @@ export const Form: React.FC<FormProps> = (
         onCancel,
         missingFields,
         setMissingFields,
-        // setFamilyMembers,
-        addRelationship
+        setFamilyMembers,
+        addRelationship,
+        removeRelationship
     }) => {
     const [formData, setFormData] = React.useState<{ [key: string]: any }>({});
     const [missingBanner, setMissingBanner] = React.useState(false);
@@ -88,6 +90,16 @@ export const Form: React.FC<FormProps> = (
         console.log(formData);
         onCancel();
     };
+
+    const handleAddRelationship = (e: React.MouseEvent) => {
+        e.preventDefault();
+        addRelationship?.();
+    }
+
+    const handleRemoveRelationship = (e: React.MouseEvent) => {
+        e.preventDefault();
+        removeRelationship?.();
+    }
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -218,11 +230,12 @@ export const Form: React.FC<FormProps> = (
             {fields[0]?.complexOptions &&
                 <div className="form-group">
                     <div className="form-label">
-                        <AppButton label={'+ Add'} onClick={handleSubmit} primary={true} />
+                        <AppButton label={'+ Add'} onClick={handleAddRelationship} primary={true} />
                     </div>
-                    <div>
-                        <AppButton label={'- RemoveLast'} onClick={handleCancel} />
-                    </div>
+                    {fields?.length > 1 &&
+                        <div>
+                            <AppButton label={'- Remove'} onClick={handleRemoveRelationship} />
+                        </div>}
                 </div>
             }
             <div className="form-group">
