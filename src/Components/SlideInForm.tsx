@@ -4,7 +4,8 @@ import AppButton from '../CommonComponents/AppButton';
 import Form from '../CommonComponents/Form';
 import { RawFamilyMember } from '../utils';
 import submitMember from '../Services/submitMember';
-import { set } from 'lodash';
+import submitRelationships from '../Services/submitRelationships';
+import { FamilyRelation } from '../tree/types';
 
 interface SlideInFormProps {
     members: RawFamilyMember[];
@@ -60,9 +61,10 @@ const SlideInForm: React.FC<SlideInFormProps> = ({ members }) => {
         setRelationshipCounter(relationshipCounter - 1);
     }
 
-    const handleSubmitRelationship = (formData: { [key: string]: any }) => {
+    const handleSubmitRelationship = (relationships: FamilyRelation[]) => {
         // Handle form submission logic here with formData
-        console.log(formData);
+        console.log(relationships);
+        submitRelationships(relationships);
         handleCloseRel();
     }
 
@@ -89,7 +91,7 @@ const SlideInForm: React.FC<SlideInFormProps> = ({ members }) => {
                     formTitle={`Add Relationship(s) for ${selectedMember?.data.title}`}
                     cancelText='Skip'
                     fields={relationshipFields}
-                    onSubmit={handleSubmitRelationship}
+                    onSubmitRelationship={handleSubmitRelationship}
                     onCancel={handleCloseRel}
                     missingFields={missingFields}
                     setMissingFields={setMissingFields}

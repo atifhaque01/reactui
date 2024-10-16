@@ -2,6 +2,7 @@ import React from 'react';
 import './Form.css';
 import AppButton from './AppButton';
 import { RawFamilyMember } from '../utils';
+import { FamilyRelation } from '../tree/types';
 
 interface Field {
     options?: string[];
@@ -18,7 +19,8 @@ interface FormProps {
     cancelText?: string;
     submitText?: string;
     fields: Field[];
-    onSubmit: (formData: { [key: string]: any }) => void;
+    onSubmit?: (formData: { [key: string]: any }) => void;
+    onSubmitRelationship?: (relationships: FamilyRelation[]) => void;
     onCancel: () => void;
     missingFields: string[];
     setMissingFields: (fields: string[]) => void;
@@ -34,6 +36,7 @@ export const Form: React.FC<FormProps> = (
         submitText,
         fields,
         onSubmit,
+        onSubmitRelationship,
         onCancel,
         missingFields,
         setMissingFields,
@@ -43,6 +46,7 @@ export const Form: React.FC<FormProps> = (
     }) => {
     const [formData, setFormData] = React.useState<{ [key: string]: any }>({});
     const [missingBanner, setMissingBanner] = React.useState(false);
+    const [familyRelations, setFamilyRelations] = React.useState<FamilyRelation[]>([]);
 
     const handleKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
         if (event.key === 'Enter') {
@@ -79,7 +83,24 @@ export const Form: React.FC<FormProps> = (
 
         const finalFormData = { ...formData };
         setFormData({});
-        onSubmit(finalFormData);
+        onSubmit?.(finalFormData);
+    };
+
+    const handleSubmitRelationship = (e: React.FormEvent) => {
+        e.preventDefault();
+        let preMissingFields: string[] = [];
+        setMissingBanner(false);
+
+        // Check for required fields
+        for (const field of fields) {
+            if (field.required && !formData[field.name]) {
+                preMissingFields = [...preMissingFields, field.name];
+            }
+        }
+
+        const finalFormData: FamilyRelation[] = formData.relationships || [];
+        setFormData({});
+        onSubmitRelationship?.(finalFormData);
     };
 
     const handleCancel = (e: React.MouseEvent) => {
@@ -240,7 +261,11 @@ export const Form: React.FC<FormProps> = (
             }
             <div className="form-group">
                 <div className="form-label">
-                    <AppButton label={submitText || 'Submit'} onClick={handleSubmit} primary={true} />
+                    <AppButton
+                        label={submitText || 'Submit'}
+                        onClick={fields[0]?.complexOptions ? handleSubmitRelationship : handleSubmit}
+                        primary={true}
+                    />
                 </div>
                 <div>
                     <AppButton label={cancelText || 'Cancel'} onClick={handleCancel} />
