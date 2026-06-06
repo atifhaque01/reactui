@@ -1,32 +1,47 @@
-import React, { useCallback } from 'react';
-import ReactFlow, { useNodesState, useEdgesState, addEdge, Connection, Edge } from 'reactflow';
- 
-import 'reactflow/dist/style.css';
- 
-const initialNodes = [
-  { id: '1', position: { x: 0, y: 0 }, data: { label: '1' } },
-  { id: '2', position: { x: 0, y: 100 }, data: { label: '2' } },
-];
-const initialEdges = [{ id: 'e1-2', source: '1', target: '2' }];
- 
+import TreeConstructor from './TreeConstructor';
+import PageHeader from './Components/PageHeader';
+import SlideInForm, { SlideInFormHandle } from './Components/SlideInForm';
+import { useEffect, useRef, useState } from 'react';
+import { getAllMembers } from './Services/getMembers';
+import { getAllRelationships } from './Services/getRelationships';
+import { RawFamilyMember, RawFamilyRelation } from './utils';
+import { TreeHandle } from './Tree';
+
 export default function App() {
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
- 
-  const onConnect = useCallback(
-    (params: Edge | Connection) => setEdges((eds) => addEdge(params, eds)),
-    [setEdges],
-  );
- 
+  const [familyMembers, setFamilyMembers] = useState<RawFamilyMember[]>([]);
+  const [familyRelations, setFamilyRelations] = useState<RawFamilyRelation[]>([]);
+  const slideInRef = useRef<SlideInFormHandle>(null);
+  const treeRef = useRef<TreeHandle>(null);
+  const refresh = () => {
+    getAllMembers().then((members) => setFamilyMembers(members));
+    getAllRelationships().then((relations) => setFamilyRelations(relations));
+  };
+  useEffect(() => {
+    refresh();
+  }, []);
+  const handleEditMember = (member: RawFamilyMember) => slideInRef.current?.startEdit(member);
+  const handleAddRelationshipForMember = (member: RawFamilyMember) =>
+    slideInRef.current?.startAddRelationship(member);
+  const handleSelectionChange = () => slideInRef.current?.closeAll();
+  const handleSearchSelect = (id: string) => treeRef.current?.setRoot(id);
   return (
-    <div style={{ width: '100vw', height: '100vh' }}>
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-      />
+    <div style={{ overflow: 'hidden', height: '100vh' }}>
+      <div>
+        <PageHeader members={familyMembers} onSelectMember={handleSearchSelect} />
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '5px' }}>
+        <SlideInForm ref={slideInRef} members={familyMembers} relations={familyRelations} onChange={refresh} />
+      </div>
+      {familyMembers.length > 0 && 
+        <div>
+          <TreeConstructor
+            ref={treeRef}
+            familyMembers={familyMembers}
+            familyRelations={familyRelations}
+            onEditMember={handleEditMember}
+            onAddRelationshipForMember={handleAddRelationshipForMember}
+            onSelectionChange={handleSelectionChange} />
+        </div>}
     </div>
   );
 }
