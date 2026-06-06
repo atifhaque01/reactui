@@ -1,7 +1,7 @@
 import { Edge } from "reactflow";
 import { InnerFamilyEdgeData, InnerFamilyTypeKey } from "../FamilyComponents/InnerFamilyEdge";
 import { EDGE_YGAP_MODIFIER, GENERATION_HEIGHT } from "../tree/constants";
-import { isOddModifer, isRelationSharingKids as isRelationPossibleCouple } from "../tree/utils";
+import { isOddModifer, isRelationMarried, isRelationSharingKids as isRelationPossibleCouple } from "../tree/utils";
 import { EDGES_COLORS } from "./constants";
 import { FamilyMember, FamilyRelation, Generation, OTHERS_GENERATION, ParentsChildrens } from "./types";
 import uniq from "lodash/uniq";
@@ -120,7 +120,7 @@ export function buildCouplesEdges(
                 style: {
                     stroke: color,
                     strokeWidth: 3,
-                    strokeDasharray: relation.relationType === "Partner" ? undefined : "5"
+                    strokeDasharray: isRelationMarried(relation.relationType) ? undefined : "5"
                 },
                 type: CoupleEdgeTypeKey
             };

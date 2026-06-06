@@ -2,7 +2,7 @@
     position: fixed;
     top: 0;
     right: -100%;
-    width: 300px;
+    width: 50%;
     height: 100%;
     background-color: white;
     box-shadow: -2px 0 5px rgba(0,0,0,0.5);
@@ -14,8 +14,101 @@
     right: 0;
 }
 
+.slide-in-close {
+    position: absolute;
+    top: 10px;
+    right: 14px;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    font-size: 26px;
+    line-height: 1;
+    color: #555;
+    cursor: pointer;
+    z-index: 1;
+}
+
+.slide-in-close:hover {
+    color: #000;
+}
+
 .form-buttons {
     display: flex;
     justify-content: space-between;
     margin-top: 20px;
+}
+
+.manage-panel {
+    width: 100%;
+}
+
+.manage-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.manage-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.manage-list-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.manage-list-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.edit-relationships-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.edit-relationship-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.edit-relationship-name {
+    font-weight: 600;
+}
+
+.edit-relationship-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+}
+
+.edit-relationship-controls .relationship-direction-label {
+    font-size: 12px;
+    color: #666;
+    margin-top: 4px;
+}
+
+.edit-relationship-controls .relationship-visual-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.edit-relationship-controls .relationship-visual-toggle input {
+    cursor: pointer;
 }

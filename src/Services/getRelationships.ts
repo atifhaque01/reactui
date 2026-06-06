@@ -1,10 +1,11 @@
 import axios from "axios";
 import { RawFamilyRelation } from "../utils";
+import { API_BASE_URL } from "./config";
 
 export async function getAllRelationships() {
     let relations: RawFamilyRelation[] = [];
     try{
-    const responseRelationships = (await axios.get('http://localhost:3012/family/getAllRelationships')).data as [];
+    const responseRelationships = (await axios.get(`${API_BASE_URL}/family/getAllRelationships`)).data as [];
 
     relations = responseRelationships.map((relation: any) => ({
         relationType: relation.relationType,

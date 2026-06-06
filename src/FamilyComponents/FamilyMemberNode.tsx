@@ -87,11 +87,8 @@ function FamilyMemberNodeUI({ id, data }: NodeProps<FamilyMemberNodeData>) {
                     </div>
                 </div>
                 <div className="content">
-                    <div className="text-content">
-                        {data.subtitles}
-                        {data.relationToSelected && <div className="relation">relation: {data.relationToSelected}</div>}
-                    </div>
-                    {profileImg && <img src={profileImg} alt={data.sex} width="40px" height="40px" />}
+                    {profileImg && <img className="profile-image" src={profileImg} alt={data.sex} />}
+                    {data.relationToSelected && <div className="relation-to-selected">Relationship: {data.relationToSelected}</div>}
                 </div>
             </div>
             <div className="chips-row">

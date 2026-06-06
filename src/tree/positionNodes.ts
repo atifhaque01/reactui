@@ -6,8 +6,7 @@ import {
     FamilyMembers,
     FamilyRelations,
     GenerationsPossible,
-    InnerFamily,
-    OTHERS_GENERATION
+    InnerFamily
 } from "./types";
 import { calcX } from "./utils";
 
@@ -23,9 +22,13 @@ export function positionUnknownGeneration(otherGenerationNodes?: FamilyMember[])
         return [];
     }
 
+    // Place the "others" bucket one row above the highest possible ancestor
+    // generation so it never overlaps a real generation row. (Multiplying by
+    // OTHERS_GENERATION directly would push it absurdly far off-screen.)
+    const topGeneration = Math.min(...GenerationsPossible);
     const unknownGenerationNodes = otherGenerationNodes.map((node, i) => {
         const x = calcX(i % MAX_IN_ROW);
-        const y = OTHERS_GENERATION * -(GENERATION_HEIGHT + NODE_HEIGHT);
+        const y = (topGeneration - 1) * (GENERATION_HEIGHT + NODE_HEIGHT);
         const othersY = y - Math.floor(i / MAX_IN_ROW) * (NODE_HEIGHT + GENERATION_HEIGHT) * 0.7;
         return buildNodeFromFamilyMember(node, x, othersY);
     });
@@ -204,7 +207,8 @@ export function addNodeSelection(
                 ...node,
                 data: {
                     ...node.data,
-                    isRoot: true
+                    isRoot: true,
+                    relationToSelected: "Self"
                 }
             };
         }
@@ -213,7 +217,10 @@ export function addNodeSelection(
             ...node,
             data: {
                 ...node.data,
-                relationToSelected: familyRelations[buildEdgeId(selectedNodeId, node.id)]?.prettyType
+                // Show the relationship from the selected node to this node.
+                // When no relationship is defined between them, fall back to
+                // "unknown" so every node still surfaces a relationship.
+                relationToSelected: familyRelations[buildEdgeId(selectedNodeId, node.id)]?.prettyType ?? "unknown"
             }
         };
     });

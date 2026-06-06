@@ -5,6 +5,7 @@ interface AppButtonProps {
     label: string;
     onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
     primary?: boolean;
+    disabled?: boolean;
 }
 
 const StyledButton = styled.button<{ $primary?: boolean }>`
@@ -20,10 +21,17 @@ const StyledButton = styled.button<{ $primary?: boolean }>`
     &:hover {
         background: ${props => (props.$primary ? 'darkblue' : 'lightgray')};
     }
+
+    &:disabled {
+        background: lightgray;
+        color: gray;
+        border-color: gray;
+        cursor: not-allowed;
+    }
 `;
 
-const AppButton: React.FC<AppButtonProps> = ({ label, onClick, primary }) => {
-    return <StyledButton $primary={primary} onClick={onClick}>{label}</StyledButton>;
+const AppButton: React.FC<AppButtonProps> = ({ label, onClick, primary, disabled }) => {
+    return <StyledButton $primary={primary} onClick={onClick} disabled={disabled}>{label}</StyledButton>;
 };
 
 export default AppButton;

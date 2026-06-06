@@ -1,86 +1,122 @@
 export type ParentsChildrens = {
-    parentA: string;
-    parentB: string;
-    children: string[];
+  parentA: string;
+  parentB: string;
+  children: string[];
 };
 
 export type RelationTypes =
-    | "Sibling"
-    | "Sibling (maybe step)"
-    | "Nephew/niece"
-    | "Nephew/niece (maybe step)"
-    | "Child"
-    | "Child (maybe step)"
-    | "Cousin"
-    | "Cousin (maybe step)"
-    | "Partner"
-    | "Step child"
-    | "Step sibling"
-    | "Adopted child"
-    | "Have shared kids"
-    | "Sibling in law"
-    | "Divorcee"
-    | "Uncle/aunt"
-    | "Uncle/aunt (maybe step)"
-    | "Parent"
-    | "Parent (maybe step)"
-    | "Step parent"
-    | "Adoptive parent"
-    | "Parent in law"
-    | "Child in law"
-    | "Common-Law Partner"
-    | "Grandchild"
-    | "Grandchild (maybe step)"
-    | "Grandparent"
-    | "Grandparent (maybe step)"
-    | "Relative";
+  // Older generations
+  | "Grandfather"
+  | "Grandmother"
+  | "Grandfather (step)"
+  | "Grandmother (step)"
+  | "Father"
+  | "Mother"
+  | "Father (step)"
+  | "Mother (step)"
+  | "Step father"
+  | "Step mother"
+  | "Adoptive father"
+  | "Adoptive mother"
+  | "Father in law"
+  | "Mother in law"
+  | "Uncle"
+  | "Aunt"
+  | "Uncle (step)"
+  | "Aunt (step)"
+  // Same generation
+  | "Husband"
+  | "Wife"
+  | "Husband (divorced)"
+  | "Wife (divorced)"
+  | "Common-Law Partner"
+  | "Have shared kids"
+  | "Brother"
+  | "Sister"
+  | "Brother (step)"
+  | "Sister (step)"
+  | "Step brother"
+  | "Step sister"
+  | "Brother in law"
+  | "Sister in law"
+  | "Male cousin"
+  | "Female cousin"
+  | "Male cousin (step)"
+  | "Female cousin (step)"
+  // Younger generations
+  | "Son"
+  | "Daughter"
+  | "Son (step)"
+  | "Daughter (step)"
+  | "Step son"
+  | "Step daughter"
+  | "Adopted son"
+  | "Adopted daughter"
+  | "Son in law"
+  | "Daughter in law"
+  | "Nephew"
+  | "Niece"
+  | "Nephew (step)"
+  | "Niece (step)"
+  | "Grandson"
+  | "Granddaughter"
+  | "Grandson (step)"
+  | "Granddaughter (step)"
+  // Other
+  | "Relative";
 
 export type FamilyRelation = {
-    id: string;
-    from: string;
-    to: string;
-    relationType: RelationTypes;
-    prettyType: string;
-    isInnerFamily: boolean;
+  id: string;
+  from: string;
+  to: string;
+  relationType: RelationTypes;
+  prettyType: string;
+  isInnerFamily: boolean;
 };
 
 export type BadgeData = {
-    bgColor: string;
-    label: string;
-    textColor: string;
+  bgColor: string;
+  label: string;
+  textColor: string;
 };
 
 export type FamilyMember = {
-    id: string;
-    data: {
-        badges: {
-            bgColor: string;
-            label: string;
-            textColor: string;
-        }[];
-        title: string;
-        titleBgColor: string;
-        titleTextColor: string;
-        sex: "M" | "F";
-        subtitles: string;
-        isHidden: boolean;
-        imageUrl?: string;
-        onVisibilityChange: (isVisible: boolean) => void;
-    };
+  id: string;
+  data: {
+    badges: {
+      bgColor: string;
+      label: string;
+      textColor: string;
+    }[];
+    title: string;
+    titleBgColor: string;
+    titleTextColor: string;
+    sex: "M" | "F";
+    subtitles: string;
+    isHidden: boolean;
+    imageUrl?: string;
+    onVisibilityChange: (isVisible: boolean) => void;
+  };
 };
 
 export type FamilyMembers = Record<string, FamilyMember>;
 export type FamilyRelations = Record<string, FamilyRelation>;
 
 export type InnerFamily = {
-    parents: string[];
-    children: InnerFamily[];
-    generation: Generation;
-    width?: number;
-    centerX?: number;
-    couplePainted?: boolean;
+  parents: string[];
+  children: InnerFamily[];
+  generation: Generation;
+  width?: number;
+  centerX?: number;
+  couplePainted?: boolean;
 };
 
-export const GenerationsPossible = [-2, -1, 0, 1, 2] as const;
-export const OTHERS_GENERATION = 3;
-export type Generation = (typeof GenerationsPossible)[number] | typeof OTHERS_GENERATION;
+// Support up to 20 generations in each direction from the root (generation 0).
+export const MAX_GENERATION_DISTANCE = 20;
+export const GenerationsPossible: readonly number[] = Array.from(
+  { length: MAX_GENERATION_DISTANCE * 2 + 1 },
+  (_, i) => i - MAX_GENERATION_DISTANCE
+);
+// Must stay OUTSIDE the renderable generation range above.
+export const OTHERS_GENERATION = 999;
+export type Generation = number;

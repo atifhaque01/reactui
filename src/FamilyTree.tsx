@@ -1,5 +1,5 @@
-import { useState } from "react";
-import ReactFlow, { MiniMap } from "reactflow";
+import { useEffect, useState } from "react";
+import ReactFlow, { MiniMap, useReactFlow } from "reactflow";
 import CoupleEdge, { CoupleEdgeTypeKey } from "./FamilyComponents/CoupleEdge";
 import { FamilyMemberNodeComp } from "./FamilyComponents/FamilyMemberNode";
 import InnerFamilyEdge, { InnerFamilyTypeKey } from "./FamilyComponents/InnerFamilyEdge";
@@ -12,6 +12,7 @@ import {
     positionUnknownGeneration
 } from "./tree/positionNodes";
 import { FamilyMember, FamilyMembers, FamilyRelations, OTHERS_GENERATION } from "./tree/types";
+import { NODE_HEIGHT, NODE_WIDTH } from "./tree/constants";
 import { nodeColorForMinimap } from "./utils";
 
 const nodeTypes = { familyMember: FamilyMemberNodeComp };
@@ -37,6 +38,7 @@ export const FamilyTree = ({
 }: FamilyTreeProps) => {
     const selectedNode = rootMember.id;
     const [hiddenNodesIds, setHiddenNodesIds] = useState<string[]>([]);
+    const { setCenter } = useReactFlow();
 
     const familyMembersWithVisibility = Object.fromEntries(
         Object.entries(rawFamilyMembers).map(([key, value]) => {
@@ -62,6 +64,20 @@ export const FamilyTree = ({
     const parentChildEdges = buildEdgesFromParentChildrenRelations(parentChildrenFamilies, familyGenerations);
 
     const couplesEdges = buildCouplesEdges(familyRelationsValues, parentChildEdges, parentChildrenFamilies);
+
+    // Always keep the selected node centered (horizontally and vertically).
+    const selectedNodePosition = nodesWithVizCallback.find((node) => node.id === selectedNode)?.position;
+    const selectedNodeX = selectedNodePosition?.x;
+    const selectedNodeY = selectedNodePosition?.y;
+    useEffect(() => {
+        if (selectedNodeX === undefined || selectedNodeY === undefined) {
+            return;
+        }
+        setCenter(selectedNodeX + NODE_WIDTH / 2, selectedNodeY + NODE_HEIGHT / 2, {
+            zoom: 0.5,
+            duration: 400,
+        });
+    }, [selectedNode, selectedNodeX, selectedNodeY, setCenter]);
 
     return (
         <div style={{ height: "100%", width: "100%", direction: "ltr" }} className="family-chart">

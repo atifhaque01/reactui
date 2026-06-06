@@ -30,6 +30,31 @@
   border-radius: 4px;
 }
 
+.relationship-visual-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.relationship-visual-toggle input {
+  cursor: pointer;
+}
+
+.relationship-type-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.relationship-direction-label {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
 .form-right-header {
   flex: 1;
   padding: 2px;

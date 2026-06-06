@@ -10,36 +10,76 @@ import {
     ParentsChildrens,
     FamilyRelation
 } from "./types";
-import { getGenerationFromRelation, isRelationAChild, isRelationSharingKids } from "./utils";
+import {
+    getGenerationOffsetFromLabel,
+    isRelationAChild,
+    isRelationAParent,
+    isRelationSharingKids
+} from "./utils";
 
 function tryInferGenerationForOthers(
     familyMemberByGeneration: [Generation, FamilyMember][],
     familyRelations: FamilyRelations
 ): [Generation, FamilyMember][] {
-    const others: FamilyMember[] = familyMemberByGeneration
-        .filter(([gen]) => gen === OTHERS_GENERATION)
-        .map(([, member]) => member);
-    const zeroGen: FamilyMember[] = familyMemberByGeneration.filter(([gen]) => gen === 0).map(([, member]) => member);
+    // Work on a mutable copy so we can keep promoting "others" to a concrete
+    // generation across multiple passes.
+    const working: [Generation, FamilyMember][] = familyMemberByGeneration.map(
+        ([gen, member]) => [gen, member]
+    );
 
-    return others.map((othersMember) => {
-        const relationsFromZeroGeneration = zeroGen.map(
-            (relative) => familyRelations[buildEdgeId(othersMember.id, relative.id)]?.relationType
-        );
-        const generationsFromZeroGeneration = relationsFromZeroGeneration.map((relation) =>
-            getGenerationFromRelation(relation)
-        );
-        const nonOthersGenerationsPossible = generationsFromZeroGeneration.filter(
-            (generation) => generation !== null && generation !== OTHERS_GENERATION
-        );
+    // The offset between an "other" member and any already-placed relative may
+    // be encoded either in the strict relationType or in the free-form pretty
+    // label (e.g. "Great-grandfather"), so consider both.
+    const offsetBetween = (othersId: string, relativeId: string): Generation | null => {
+        const relation = familyRelations[buildEdgeId(othersId, relativeId)];
+        if (!relation) return null;
 
-        const newInfferedGeneration = nonOthersGenerationsPossible.every(
-            (gen) => gen === nonOthersGenerationsPossible[0]
-        )
-            ? nonOthersGenerationsPossible[0]
-            : OTHERS_GENERATION;
+        const fromType = getGenerationOffsetFromLabel(relation.relationType);
+        if (fromType !== OTHERS_GENERATION) return fromType;
 
-        return [newInfferedGeneration, othersMember];
-    });
+        const fromPretty = getGenerationOffsetFromLabel(relation.prettyType);
+        if (fromPretty !== OTHERS_GENERATION) return fromPretty;
+
+        return null;
+    };
+
+    // Iterate to a fixpoint: each pass can place "others" that anchor off
+    // members placed in a previous pass. This lets deep ancestor/descendant
+    // chains (great-grandparent -> grandparent -> parent -> root) resolve even
+    // though only adjacent links carry a concrete relationship.
+    let changed = true;
+    while (changed) {
+        changed = false;
+
+        const placed = working.filter(([gen]) => gen !== OTHERS_GENERATION);
+
+        for (let i = 0; i < working.length; i++) {
+            const [gen, othersMember] = working[i];
+            if (gen !== OTHERS_GENERATION) continue;
+
+            const inferredGenerations = placed
+                .map(([relativeGeneration, relative]) => {
+                    const relationOffset = offsetBetween(othersMember.id, relative.id);
+                    if (relationOffset === null) return null;
+
+                    // relationOffset is how many generations "up" the relative
+                    // is from othersMember; add it to the relative's own
+                    // generation to get othersMember's generation.
+                    return (relativeGeneration + relationOffset) as Generation;
+                })
+                .filter((generation): generation is Generation => generation !== null);
+
+            if (
+                inferredGenerations.length > 0 &&
+                inferredGenerations.every((g) => g === inferredGenerations[0])
+            ) {
+                working[i] = [inferredGenerations[0], othersMember];
+                changed = true;
+            }
+        }
+    }
+
+    return working;
 }
 
 export function buildGenerations(
@@ -50,23 +90,20 @@ export function buildGenerations(
     const familyMembersByGeneration: [Generation, FamilyMember][] = Object.values(familyMembers).map((member) => {
         if (member.id === rootId) return [0, member];
 
-        const relationToRootId = `${member.id}-${rootId}`;
-        const relationToRoot = familyRelations[relationToRootId]?.relationType;
+        const relation = familyRelations[`${member.id}-${rootId}`];
+        // The direct-to-root relationship may be a strict relationType or a
+        // free-form pretty label (e.g. derived "Great-grandfather"), so try
+        // both before falling back to the "others" bucket.
+        const generationFromType = getGenerationOffsetFromLabel(relation?.relationType);
+        const generation =
+            generationFromType !== OTHERS_GENERATION
+                ? generationFromType
+                : getGenerationOffsetFromLabel(relation?.prettyType);
 
-        if (relationToRoot) {
-            const generation: Generation = getGenerationFromRelation(relationToRoot);
-
-            return [generation, member];
-        }
-
-        return [OTHERS_GENERATION, member];
+        return [generation, member];
     });
 
-    const inferredOtherGen = tryInferGenerationForOthers(familyMembersByGeneration, familyRelations);
-    const membersByGenFull = [
-        ...familyMembersByGeneration.filter(([gen]) => gen !== OTHERS_GENERATION),
-        ...inferredOtherGen
-    ];
+    const membersByGenFull = tryInferGenerationForOthers(familyMembersByGeneration, familyRelations);
 
     const reducedFamilyMembersByGeneration = membersByGenFull.reduce(
         (obj, member) => {
@@ -199,7 +236,7 @@ export function buildParentsChildrenStructs(familyMembers: FamilyMember[], famil
     const parentChildrenFamilies = familyMembers
         .map((member) => {
             const parents = familyRelations
-                .filter((relation) => relation.to === member.id && relation.relationType === "Parent")
+                .filter((relation) => relation.to === member.id && isRelationAParent(relation.relationType))
                 .sort();
             if (parents.length > 2) console.error(`Too many parents for ${member.id}`);
 
