@@ -66,10 +66,10 @@ The backend base URL is configured in `src/Services/config.ts`:
 
 ```ts
 export const API_BASE_URL =
-  process.env.REACT_APP_API_BASE_URL || "http://localhost:3012";
+  process.env.API_BASE_URL || "http://localhost:3012";
 ```
 
-Override it by setting `REACT_APP_API_BASE_URL` (e.g. in a `.env` file) before
+Override it by setting `API_BASE_URL` (e.g. in a `.env` file) before
 building/starting.
 
 ---

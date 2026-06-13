@@ -7,10 +7,10 @@ RUN npm ci
 
 COPY . .
 
-# REACT_APP_API_BASE_URL must be passed at build time, e.g.:
-# docker build --build-arg REACT_APP_API_BASE_URL=https://api.yourdomain.com .
-ARG REACT_APP_API_BASE_URL
-ENV REACT_APP_API_BASE_URL=$REACT_APP_API_BASE_URL
+# API_BASE_URL must be passed at build time, e.g.:
+# docker build --build-arg API_BASE_URL=https://api.yourdomain.com .
+ARG API_BASE_URL
+ENV API_BASE_URL=$API_BASE_URL
 
 RUN npm run build
 
