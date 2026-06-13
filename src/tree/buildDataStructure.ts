@@ -193,6 +193,8 @@ function buildInnerFamilyPerCouple(
                 return;
             }
 
+            couple.childMemberIds = childrenIds;
+
             const childrenWithTheirCouples = couplesInNextGeneration
                 .filter((nextGenFamilies) => {
                     return nextGenFamilies.parents.some((nextGenParent) =>

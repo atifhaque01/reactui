@@ -114,6 +114,43 @@ export function positionAndBuildFamilyTree(
         nonCenterPositionedCouples.forEach(familyCenterPositionRecurse);
     }
 
+    // Third pass: fix orphan parent couples — couples with no children in the
+    // InnerFamily tree because their child was claimed by a sibling parent couple.
+    // Place the orphan just to the right of the sibling, then re-center the shared
+    // child couple at the midpoint between both parents and propagate downward.
+    for (const currentGeneration of GenerationsPossible) {
+        const couplesInCurrentGeneration = innerFamiliesPerGeneration[currentGeneration];
+        if (!couplesInCurrentGeneration) continue;
+        const couplesInChildGeneration = innerFamiliesPerGeneration[currentGeneration + 1];
+        if (!couplesInChildGeneration) continue;
+
+        const orphans = couplesInCurrentGeneration.filter(
+            (c) => c.children.length === 0 && c.childMemberIds && c.childMemberIds.length > 0
+        );
+
+        for (const orphan of orphans) {
+            for (const childId of (orphan.childMemberIds ?? [])) {
+                const childCouple = couplesInChildGeneration.find(
+                    (cc) => cc.parents.includes(childId) && cc.centerX !== undefined
+                );
+                if (!childCouple || childCouple.centerX === undefined) continue;
+
+                const siblingParent = couplesInCurrentGeneration.find(
+                    (c) => c !== orphan && c.children.includes(childCouple) && c.centerX !== undefined
+                );
+                if (!siblingParent || siblingParent.centerX === undefined) continue;
+
+                // Place the orphan immediately to the right of the sibling (no gap)
+                orphan.centerX = siblingParent.centerX + (siblingParent.width ?? 0) / 2 + (orphan.width ?? 0) / 2;
+
+                // Re-center the shared child couple at the midpoint of both parents
+                // and propagate the updated position down to its descendants.
+                childCouple.centerX = (siblingParent.centerX + orphan.centerX) / 2;
+                familyCenterPositionRecurse(childCouple);
+            }
+        }
+    }
+
     const familyTreeCreateNodesRecurse = (couple: InnerFamily): FamilyMemberNode[] => {
         const centerPosition = couple.centerX ?? 0;
         const width = sumParentsSize(couple, familyMembers);
@@ -223,5 +260,5 @@ export function addNodeSelection(
                 relationToSelected: familyRelations[buildEdgeId(selectedNodeId, node.id)]?.prettyType ?? "unknown"
             }
         };
-    });
+    }).filter((node) => node.data.relationToSelected !== "unknown");
 }

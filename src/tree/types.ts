@@ -20,6 +20,8 @@ export type RelationTypes =
   | "Adoptive mother"
   | "Father in law"
   | "Mother in law"
+  | "Step father in law"
+  | "Step mother in law"
   | "Uncle"
   | "Aunt"
   | "Uncle (step)"
@@ -54,6 +56,8 @@ export type RelationTypes =
   | "Adopted daughter"
   | "Son in law"
   | "Daughter in law"
+  | "Step son in law"
+  | "Step daughter in law"
   | "Nephew"
   | "Niece"
   | "Nephew (step)"
@@ -109,6 +113,7 @@ export type InnerFamily = {
   width?: number;
   centerX?: number;
   couplePainted?: boolean;
+  childMemberIds?: string[]; // all biological/step children by ID, regardless of which parent couple claims them in the tree structure
 };
 
 // Support up to 20 generations in each direction from the root (generation 0).

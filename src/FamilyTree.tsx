@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import ReactFlow, { MiniMap, useReactFlow } from "reactflow";
+import ReactFlow, { Background, BackgroundVariant, Controls, MiniMap, useReactFlow } from "reactflow";
 import CoupleEdge, { CoupleEdgeTypeKey } from "./FamilyComponents/CoupleEdge";
 import { FamilyMemberNodeComp } from "./FamilyComponents/FamilyMemberNode";
 import InnerFamilyEdge, { InnerFamilyTypeKey } from "./FamilyComponents/InnerFamilyEdge";
@@ -8,10 +8,9 @@ import { buildCouplesEdges, buildEdgesFromParentChildrenRelations } from "./tree
 import {
     addNodeSelection,
     addNodeVisibilityCallback,
-    positionAndBuildFamilyTree,
-    positionUnknownGeneration
+    positionAndBuildFamilyTree
 } from "./tree/positionNodes";
-import { FamilyMember, FamilyMembers, FamilyRelations, OTHERS_GENERATION } from "./tree/types";
+import { FamilyMember, FamilyMembers, FamilyRelations } from "./tree/types";
 import { NODE_HEIGHT, NODE_WIDTH } from "./tree/constants";
 import { nodeColorForMinimap } from "./utils";
 
@@ -51,19 +50,40 @@ export const FamilyTree = ({
     const familyRelationsValues = Object.values(familyRelations);
 
     const familyGenerations = buildGenerations(familyMembersWithVisibility, familyRelations, rootMember.id);
-    const innerFamiliesPerGeneration = buildDataStructure(familyGenerations, familyRelations);
 
-    const familyNodes = positionAndBuildFamilyTree(innerFamiliesPerGeneration, familyMembersWithVisibility);
-    const otherNodes = positionUnknownGeneration(familyGenerations[OTHERS_GENERATION]);
+    // Only render ±1 generation around the selected root to keep the layout clean.
+    const GENERATION_WINDOW = 2;
+    const windowedGenerations = Object.fromEntries(
+        Object.entries(familyGenerations).filter(([gen]) => {
+            const g = parseInt(gen);
+            return !isNaN(g) && Math.abs(g) <= GENERATION_WINDOW;
+        })
+    ) as typeof familyGenerations;
 
-    const allNodes = [...familyNodes, ...otherNodes];
+    const visibleIds = new Set<string>(
+        Object.values(windowedGenerations).flat().map((m) => m.id)
+    );
+
+    const visibleFamilyMembers = Object.fromEntries(
+        Object.entries(familyMembersWithVisibility).filter(([id]) => visibleIds.has(id))
+    );
+    const visibleMembersValues = Object.values(visibleFamilyMembers);
+    const visibleRelationsValues = familyRelationsValues.filter(
+        (r) => visibleIds.has(r.from) && visibleIds.has(r.to)
+    );
+
+    const innerFamiliesPerGeneration = buildDataStructure(windowedGenerations, familyRelations);
+
+    const familyNodes = positionAndBuildFamilyTree(innerFamiliesPerGeneration, visibleFamilyMembers);
+
+    const allNodes = familyNodes;
     const nodesWithSelectedInfo = addNodeSelection(familyRelations, allNodes, selectedNode);
     const nodesWithVizCallback = addNodeVisibilityCallback(nodesWithSelectedInfo, hiddenNodesIds, setHiddenNodesIds);
 
-    const parentChildrenFamilies = buildParentsChildrenStructs(familyMembersValues, familyRelationsValues);
-    const parentChildEdges = buildEdgesFromParentChildrenRelations(parentChildrenFamilies, familyGenerations);
+    const parentChildrenFamilies = buildParentsChildrenStructs(visibleMembersValues, visibleRelationsValues);
+    const parentChildEdges = buildEdgesFromParentChildrenRelations(parentChildrenFamilies, windowedGenerations);
 
-    const couplesEdges = buildCouplesEdges(familyRelationsValues, parentChildEdges, parentChildrenFamilies);
+    const couplesEdges = buildCouplesEdges(visibleRelationsValues, parentChildEdges, parentChildrenFamilies);
 
     // Always keep the selected node centered (horizontally and vertically).
     const selectedNodePosition = nodesWithVizCallback.find((node) => node.id === selectedNode)?.position;
@@ -100,6 +120,8 @@ export const FamilyTree = ({
                 }}
                 onNodeDoubleClick={(_, node) => onDoubleClick && onDoubleClick(node.id)}
             >
+                <Background variant={BackgroundVariant.Dots} gap={24} size={2} color="#d0d7de" />
+                <Controls showInteractive={false} />
                 <MiniMap nodeStrokeWidth={3} pannable zoomable nodeColor={nodeColorForMinimap} />
             </ReactFlow>
         </div>
