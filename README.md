@@ -65,11 +65,11 @@ npm test         # CRA test runner (watch mode)
 The backend base URL is configured in `src/Services/config.ts`:
 
 ```ts
-export const API_BASE_URL =
-  process.env.API_BASE_URL || "http://localhost:3012";
+export const REACT_APP_API_BASE_URL =
+  process.env.REACT_APP_API_BASE_URL || "http://localhost:3012";
 ```
 
-Override it by setting `API_BASE_URL` (e.g. in a `.env` file) before
+Override it by setting `REACT_APP_API_BASE_URL` (e.g. in a `.env` file) before
 building/starting.
 
 ---
@@ -460,7 +460,7 @@ direct child type turns it on again.
 ## Services layer
 
 Thin axios wrappers around the backend API (`src/Services/`), all using
-`API_BASE_URL`:
+`REACT_APP_API_BASE_URL`:
 
 | File                       | Backend endpoint                         |
 | -------------------------- | ---------------------------------------- |

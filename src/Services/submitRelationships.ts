@@ -1,6 +1,6 @@
 import axios from "axios";
 import { FamilyRelation } from "../tree/types";
-import { API_BASE_URL } from "./config";
+import { REACT_APP_API_BASE_URL } from "./config";
 
 export default async function submitRelationships(relationships: FamilyRelation[]): Promise<String | undefined> {
   try {
@@ -13,7 +13,7 @@ export default async function submitRelationships(relationships: FamilyRelation[
       toId: relationship.to,
       isInnerFamily: relationship.isInnerFamily
     }));
-    const response = await axios.post(`${API_BASE_URL}/family/addRelationship`, payload);
+    const response = await axios.post(`${REACT_APP_API_BASE_URL}/family/addRelationship`, payload);
     return response.data;
   } catch (error) {
     return undefined;

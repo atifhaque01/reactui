@@ -1,10 +1,10 @@
 import axios from "axios";
 import { RawFamilyMember } from "../utils";
-import { API_BASE_URL } from "./config";
+import { REACT_APP_API_BASE_URL } from "./config";
 
 export default async function updateMember(id: string, member: RawFamilyMember): Promise<boolean> {
   try {
-    await axios.put(`${API_BASE_URL}/family/updateMember`, member.data, {
+    await axios.put(`${REACT_APP_API_BASE_URL}/family/updateMember`, member.data, {
       params: { id }
     });
     return true;
