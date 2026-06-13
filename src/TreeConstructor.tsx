@@ -18,7 +18,7 @@ export const TreeConstructor = React.forwardRef<TreeHandle, TreeConstructorProps
   onSelectionChange,
 }, ref) => {
   return (
-    <div>
+    <div style={{ height: '100%', width: '100%' }}>
       <Tree
         ref={ref}
         members={familyMembers}

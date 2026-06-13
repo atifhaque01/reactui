@@ -1,9 +1,8 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
-import App from './TreeConstructor';
+import { render } from '@testing-library/react';
+import TreeConstructor from './TreeConstructor';
 
-test('renders learn react link', () => {
-  render(<App familyMembers={[]} familyRelations={[]} />);
-  const linkElement = screen.getByText(/learn react/i);
-  expect(linkElement).toBeInTheDocument();
+test('renders without crashing when there is no data', () => {
+  const { container } = render(<TreeConstructor familyMembers={[]} familyRelations={[]} />);
+  expect(container).toBeInTheDocument();
 });

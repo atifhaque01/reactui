@@ -9,17 +9,19 @@ interface AppButtonProps {
 }
 
 const StyledButton = styled.button<{ $primary?: boolean }>`
-    background: ${props => (props.$primary ? 'green' : 'white')};
-    color: ${props => (props.$primary ? 'white' : 'black')};
-    border: solid green;
-    padding: 10px 20px;
-    font-size: 16px;
+    background: ${props => (props.$primary ? '#1d6b3c' : 'white')};
+    color: ${props => (props.$primary ? 'white' : '#1d6b3c')};
+    border: 2px solid #1d6b3c;
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 600;
     cursor: pointer;
-    border-radius: 5px;
-    transition: background 0.3s;
+    border-radius: 6px;
+    transition: background 0.2s, color 0.2s;
+    white-space: nowrap;
 
     &:hover {
-        background: ${props => (props.$primary ? 'darkblue' : 'lightgray')};
+        background: ${props => (props.$primary ? '#155230' : '#e8f2ec')};
     }
 
     &:disabled {

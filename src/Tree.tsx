@@ -2,7 +2,6 @@ import React from "react";
 import "./index.css";
 import { ReactFlowProvider } from "reactflow";
 import { RawFamilyMember, buildFamilyAndRelations, RawFamilyRelation } from "./utils";
-// import rawFamily from "../tests/family1.json";
 import { FamilyTree } from "./FamilyTree";
 import MemberDetailsPanel from "./Components/MemberDetailsPanel";
 import "reactflow/dist/style.css";
@@ -20,9 +19,11 @@ export interface TreeHandle {
 }
 
 export const Tree = React.forwardRef<TreeHandle, TreeProps>(({ members, relations, onEditMember, onAddRelationshipForMember, onSelectionChange }, ref) => {
-    const [familyMembersRecord, familyRelationsRecord] = buildFamilyAndRelations(members as RawFamilyMember[],
-        relations as RawFamilyRelation[]);
-    const [rootId, setRootId] = React.useState(Object.values(familyMembersRecord)[0].id);
+    const [familyMembersRecord, familyRelationsRecord] = React.useMemo(
+        () => buildFamilyAndRelations(members, relations),
+        [members, relations]
+    );
+    const [rootId, setRootId] = React.useState(() => Object.values(familyMembersRecord)[0]?.id);
     // If the current root no longer exists (e.g. it was just deleted), fall
     // back to any remaining member so the tree doesn't render with an
     // undefined root.
@@ -47,33 +48,31 @@ export const Tree = React.forwardRef<TreeHandle, TreeProps>(({ members, relation
         },
     }));
     const selectedRawMember = members.find((member) => member.id === resolvedRootId);
-    return <React.StrictMode>
+    return (
         <ReactFlowProvider>
-            <ReactFlowProvider>
-                <div style={{ height: "80vh", width: "100vw" }}>
-                    {rootMember && (
-                        <>
-                            <MemberDetailsPanel
-                                member={rootMember}
-                                onEdit={selectedRawMember && onEditMember ? () => onEditMember(selectedRawMember) : undefined}
-                                onAddRelationship={
-                                    selectedRawMember && onAddRelationshipForMember
-                                        ? () => onAddRelationshipForMember(selectedRawMember)
-                                        : undefined
-                                }
-                            />
-                            <FamilyTree
-                                familyMembers={familyMembersRecord}
-                                familyRelations={familyRelationsRecord}
-                                rootMember={rootMember}
-                                setRootId={handleSetRootId}
-                            />
-                        </>
-                    )}
-                </div>
-            </ReactFlowProvider>
+            <div style={{ height: "100%", width: "100%" }}>
+                {rootMember && (
+                    <>
+                        <MemberDetailsPanel
+                            member={rootMember}
+                            onEdit={selectedRawMember && onEditMember ? () => onEditMember(selectedRawMember) : undefined}
+                            onAddRelationship={
+                                selectedRawMember && onAddRelationshipForMember
+                                    ? () => onAddRelationshipForMember(selectedRawMember)
+                                    : undefined
+                            }
+                        />
+                        <FamilyTree
+                            familyMembers={familyMembersRecord}
+                            familyRelations={familyRelationsRecord}
+                            rootMember={rootMember}
+                            setRootId={handleSetRootId}
+                        />
+                    </>
+                )}
+            </div>
         </ReactFlowProvider>
-    </React.StrictMode>;
+    );
 });
 
 Tree.displayName = "Tree";

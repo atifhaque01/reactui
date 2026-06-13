@@ -104,6 +104,35 @@ export const getGenerationOffsetFromLabel = (label: string | undefined): Generat
         return (isAncestor ? base : -base) as Generation;
     }
 
+    // Great-(great-)uncle/aunt → same generation offset as grandparent/great-grandparent.
+    const uncleAuntMatch = normalized.match(/^((?:great-)*)(?:uncle|aunt)$/);
+    if (uncleAuntMatch) {
+        const greats = (uncleAuntMatch[1].match(/great-/g) ?? []).length;
+        return (greats + 1) as Generation;
+    }
+
+    // Great-(great-)nephew/niece → same generation offset as grandchild/great-grandchild.
+    const nephewNieceMatch = normalized.match(/^((?:great-)*)(?:nephew|niece)$/);
+    if (nephewNieceMatch) {
+        const greats = (nephewNieceMatch[1].match(/great-/g) ?? []).length;
+        return (-(greats + 1)) as Generation;
+    }
+
+    // Cousins of any degree (with or without "removed") → same generation.
+    if (/cousin/.test(normalized)) return 0 as Generation;
+
+    // Great-(great-)grandparent-in-law / grandchild-in-law.
+    const inLawAncMatch = normalized.match(/^((?:great-)*)grand(father|mother)-in-law$/);
+    if (inLawAncMatch) {
+        const greats = (inLawAncMatch[1].match(/great-/g) ?? []).length;
+        return (greats + 2) as Generation;
+    }
+    const inLawDescMatch = normalized.match(/^((?:great-)*)grand(son|daughter)-in-law$/);
+    if (inLawDescMatch) {
+        const greats = (inLawDescMatch[1].match(/great-/g) ?? []).length;
+        return (-(greats + 2)) as Generation;
+    }
+
     return OTHERS_GENERATION;
 };
 
@@ -282,16 +311,36 @@ export const getRelationGender = (relation: RelationTypes): RelativeSex | undefi
 };
 
 /**
- * Filters the grouped relationship options down to those valid for a person of
- * the given sex. Gender-neutral types are always kept. When `sex` is undefined
- * (unknown) every type is returned.
+ * Relationship types that can be entered manually — partner/spouse, parent,
+ * and child (including step/adoptive variants). Everything else (siblings,
+ * grandparents, uncles, cousins, in-laws …) is inferred from the graph.
  */
-export const relationGroupsForSex = (
+export const DIRECT_RELATION_TYPE_GROUPS: { label: string; options: RelationTypes[] }[] = [
+    {
+        label: "Partner / Spouse",
+        options: ["Husband", "Wife", "Husband (divorced)", "Wife (divorced)", "Common-Law Partner", "Have shared kids"]
+    },
+    {
+        label: "Parent",
+        options: ["Father", "Mother", "Father (step)", "Mother (step)", "Step father", "Step mother", "Adoptive father", "Adoptive mother"]
+    },
+    {
+        label: "Child",
+        options: ["Son", "Daughter", "Son (step)", "Daughter (step)", "Step son", "Step daughter", "Adopted son", "Adopted daughter"]
+    }
+];
+
+/**
+ * Filters any group list down to types valid for the given sex.
+ * Gender-neutral types are always kept. When `sex` is undefined every type is returned.
+ */
+export const filterGroupsBySex = (
+    groups: { label: string; options: RelationTypes[] }[],
     sex: RelativeSex | undefined
 ): { label: string; options: RelationTypes[] }[] =>
     !sex
-        ? RELATION_TYPE_GROUPS
-        : RELATION_TYPE_GROUPS
+        ? groups
+        : groups
               .map((group) => ({
                   label: group.label,
                   options: group.options.filter((option) => {
@@ -300,6 +349,53 @@ export const relationGroupsForSex = (
                   })
               }))
               .filter((group) => group.options.length > 0);
+
+/** Convenience: filters the full RELATION_TYPE_GROUPS for a given sex. */
+export const relationGroupsForSex = (
+    sex: RelativeSex | undefined
+): { label: string; options: RelationTypes[] }[] => filterGroupsBySex(RELATION_TYPE_GROUPS, sex);
+
+/**
+ * Families of interchangeable relationship variants (e.g. Father / Step father /
+ * Adoptive father). Used to populate the variant picker in the derived-relationship
+ * confirmation panel so users can adjust inferred types before saving.
+ */
+const VARIANT_FAMILIES: RelationTypes[][] = [
+    ["Grandfather", "Grandfather (step)"],
+    ["Grandmother", "Grandmother (step)"],
+    ["Father", "Father (step)", "Step father", "Adoptive father"],
+    ["Mother", "Mother (step)", "Step mother", "Adoptive mother"],
+    ["Son", "Son (step)", "Step son", "Adopted son"],
+    ["Daughter", "Daughter (step)", "Step daughter", "Adopted daughter"],
+    ["Brother", "Brother (step)", "Step brother"],
+    ["Sister", "Sister (step)", "Step sister"],
+    ["Uncle", "Uncle (step)"],
+    ["Aunt", "Aunt (step)"],
+    ["Nephew", "Nephew (step)"],
+    ["Niece", "Niece (step)"],
+    ["Grandson", "Grandson (step)"],
+    ["Granddaughter", "Granddaughter (step)"],
+    ["Male cousin", "Male cousin (step)"],
+    ["Female cousin", "Female cousin (step)"],
+    ["Father in law", "Step father in law"],
+    ["Mother in law", "Step mother in law"],
+    ["Son in law", "Step son in law"],
+    ["Daughter in law", "Step daughter in law"],
+    ["Husband", "Husband (divorced)"],
+    ["Wife", "Wife (divorced)"],
+];
+
+/**
+ * Returns the variant family (array of interchangeable types) for `type`, or an
+ * empty array when `type` is a free-form label (e.g. "First cousin once removed")
+ * that has no canonical variants.
+ */
+export const getVariantFamily = (type: string): RelationTypes[] => {
+    for (const family of VARIANT_FAMILIES) {
+        if ((family as string[]).includes(type)) return family;
+    }
+    return [];
+};
 
 /**
  * The canonical inverse for relationship types whose inverse is gender-neutral
@@ -335,7 +431,9 @@ const PARENT_TO_CHILD_INVERSE: Partial<Record<RelationTypes, { M: RelationTypes;
     "Adoptive father": { M: "Adopted son", F: "Adopted daughter" },
     "Adoptive mother": { M: "Adopted son", F: "Adopted daughter" },
     "Father in law": { M: "Son in law", F: "Daughter in law" },
-    "Mother in law": { M: "Son in law", F: "Daughter in law" }
+    "Mother in law": { M: "Son in law", F: "Daughter in law" },
+    "Step father in law": { M: "Step son in law", F: "Step daughter in law" },
+    "Step mother in law": { M: "Step son in law", F: "Step daughter in law" }
 };
 
 const CHILD_TO_PARENT_INVERSE: Partial<Record<RelationTypes, { M: RelationTypes; F: RelationTypes }>> = {
@@ -348,7 +446,9 @@ const CHILD_TO_PARENT_INVERSE: Partial<Record<RelationTypes, { M: RelationTypes;
     "Adopted son": { M: "Adoptive father", F: "Adoptive mother" },
     "Adopted daughter": { M: "Adoptive father", F: "Adoptive mother" },
     "Son in law": { M: "Father in law", F: "Mother in law" },
-    "Daughter in law": { M: "Father in law", F: "Mother in law" }
+    "Daughter in law": { M: "Father in law", F: "Mother in law" },
+    "Step son in law": { M: "Step father in law", F: "Step mother in law" },
+    "Step daughter in law": { M: "Step father in law", F: "Step mother in law" }
 };
 
 /** Other gendered inverses whose result depends on the relative's gender. */
@@ -409,16 +509,19 @@ export const getInverseRelationType = (
 };
 
 /**
- * "Obvious" relationships whose inverse direction is established automatically
- * (and locked in the UI). Per product decision this is limited to the direct
- * father/mother <-> son/daughter pairs; every other relationship's reverse is
- * chosen by the user.
+ * Relationship types whose inverse is established automatically (and locked in
+ * the UI). All direct-add types — parents, children, and spouses — have
+ * deterministic inverses, so both sides are always set together.
  */
 export const isAutoInverseRelation = (relation: RelationTypes): boolean =>
-    relation === "Father" ||
-    relation === "Mother" ||
-    relation === "Son" ||
-    relation === "Daughter";
+    isRelationAParent(relation) ||
+    isRelationAChild(relation) ||
+    relation === "Husband" ||
+    relation === "Wife" ||
+    relation === "Husband (divorced)" ||
+    relation === "Wife (divorced)" ||
+    relation === "Common-Law Partner" ||
+    relation === "Have shared kids";
 
 /** Direct parent/child links that should be treated as inner-family edges. */
 export const isInnerFamilyRelation = (relation: RelationTypes): boolean =>
@@ -500,10 +603,13 @@ const buildParentsMap = (relations: StoredRelation[]): Map<string, Set<string>> 
     };
     for (const relation of relations) {
         const type = storedRelationType(relation);
-        if (isRelationAParent(type)) {
+        // Exclude in-law types — "Father in law" is NOT a blood/adoptive parent.
+        // Walking through in-law links would incorrectly derive a spouse as a
+        // grandchild (and similar wrong transitive relationships).
+        if (isRelationAParent(type) && type !== "Father in law" && type !== "Mother in law") {
             // `to` is the parent of `from`.
             addParent(relation.fromId, relation.toId);
-        } else if (isRelationAChild(type)) {
+        } else if (isRelationAChild(type) && type !== "Son in law" && type !== "Daughter in law") {
             // `to` is the child of `from`, so `from` is the parent of `to`.
             addParent(relation.toId, relation.fromId);
         }
@@ -581,6 +687,381 @@ export const deriveTransitiveRelations = (
                 queue.push({ id: parentId, distance: ancestorDistance });
             });
         }
+    });
+
+    return derived;
+};
+
+// ─── Comprehensive relationship derivation ───────────────────────────────────
+
+/** Builds a map of every member to their direct spouses (any coupling type). */
+export const buildSpousesMap = (relations: StoredRelation[]): Map<string, Set<string>> => {
+    const spousesOf = new Map<string, Set<string>>();
+    const add = (a: string, b: string) => {
+        if (!spousesOf.has(a)) spousesOf.set(a, new Set());
+        spousesOf.get(a)!.add(b);
+    };
+    relations.forEach((rel) => {
+        if (isRelationSharingKids(storedRelationType(rel))) {
+            add(rel.fromId, rel.toId);
+            add(rel.toId, rel.fromId);
+        }
+    });
+    return spousesOf;
+};
+
+const SIBLING_RELATION_TYPES = new Set<RelationTypes>([
+    "Brother", "Sister", "Brother (step)", "Sister (step)", "Step brother", "Step sister"
+]);
+
+/** Builds a map of every member to their known siblings (explicit + inferred from shared parents). */
+const buildSiblingsMap = (
+    relations: StoredRelation[],
+    parentsOf: Map<string, Set<string>>
+): Map<string, Set<string>> => {
+    const siblingsOf = new Map<string, Set<string>>();
+    const add = (a: string, b: string) => {
+        if (a === b) return;
+        if (!siblingsOf.has(a)) siblingsOf.set(a, new Set());
+        siblingsOf.get(a)!.add(b);
+    };
+    relations.forEach((rel) => {
+        if (SIBLING_RELATION_TYPES.has(storedRelationType(rel))) {
+            add(rel.fromId, rel.toId);
+            add(rel.toId, rel.fromId);
+        }
+    });
+    // Infer siblings from shared parents.
+    const childrenOf = new Map<string, string[]>();
+    Array.from(parentsOf.entries()).forEach(([childId, parents]) => {
+        Array.from(parents).forEach((parentId) => {
+            if (!childrenOf.has(parentId)) childrenOf.set(parentId, []);
+            childrenOf.get(parentId)!.push(childId);
+        });
+    });
+    Array.from(childrenOf.values()).forEach((children) => {
+        for (let i = 0; i < children.length; i++) {
+            for (let j = i + 1; j < children.length; j++) {
+                add(children[i], children[j]);
+                add(children[j], children[i]);
+            }
+        }
+    });
+    return siblingsOf;
+};
+
+/** BFS up the parent graph from `memberId`; returns ancestor id → distance. */
+const getAncestorDistances = (
+    memberId: string,
+    parentsOf: Map<string, Set<string>>
+): Map<string, number> => {
+    const dist = new Map<string, number>();
+    const queue: { id: string; d: number }[] = [{ id: memberId, d: 0 }];
+    while (queue.length > 0) {
+        const { id, d } = queue.shift()!;
+        if (dist.has(id)) continue;
+        dist.set(id, d);
+        Array.from(parentsOf.get(id) ?? []).forEach((parentId) => {
+            if (!dist.has(parentId)) queue.push({ id: parentId, d: d + 1 });
+        });
+    }
+    return dist;
+};
+
+/**
+ * Like `buildParentsMap` but only includes Father/Mother/Son/Daughter links —
+ * no step, adoptive, or in-law links. Used to decide whether a derived
+ * relationship's path is all-direct so we can suppress irrelevant step variants.
+ */
+const buildDirectParentsMap = (relations: StoredRelation[]): Map<string, Set<string>> => {
+    const directParentsOf = new Map<string, Set<string>>();
+    const add = (childId: string, parentId: string) => {
+        if (!directParentsOf.has(childId)) directParentsOf.set(childId, new Set());
+        directParentsOf.get(childId)!.add(parentId);
+    };
+    relations.forEach((rel) => {
+        const type = storedRelationType(rel);
+        if (type === "Father" || type === "Mother") { add(rel.fromId, rel.toId); }
+        else if (type === "Son" || type === "Daughter") { add(rel.toId, rel.fromId); }
+    });
+    return directParentsOf;
+};
+
+/**
+ * BFS up the parent graph tracking both distance and whether every link in the
+ * path so far is a direct Father/Mother/Son/Daughter link (`allDirect`).
+ * When `allDirect` is true for an ancestor, step/adoptive variants of the
+ * derived label are not applicable and should not be offered in the UI.
+ */
+const getAncestorInfo = (
+    memberId: string,
+    parentsOf: Map<string, Set<string>>,
+    directParentsOf: Map<string, Set<string>>
+): Map<string, { dist: number; allDirect: boolean }> => {
+    const info = new Map<string, { dist: number; allDirect: boolean }>();
+    const queue: { id: string; d: number; direct: boolean }[] = [{ id: memberId, d: 0, direct: true }];
+    while (queue.length > 0) {
+        const { id, d, direct } = queue.shift()!;
+        if (info.has(id)) continue;
+        info.set(id, { dist: d, allDirect: direct });
+        Array.from(parentsOf.get(id) ?? []).forEach((parentId) => {
+            if (!info.has(parentId)) {
+                const isDirectLink = directParentsOf.get(id)?.has(parentId) ?? false;
+                queue.push({ id: parentId, d: d + 1, direct: direct && isDirectLink });
+            }
+        });
+    }
+    return info;
+};
+
+/**
+ * A derived relationship row. `pathHasStep` is true when the inference path
+ * included at least one step/adoptive link, making step variants of the label
+ * plausible. When false, only the base (non-step) label should be offered.
+ */
+export type DerivedRow = StoredRelation & { pathHasStep: boolean };
+
+/** Inverts a parentsOf map to produce a childrenOf map. */
+const buildChildrenMap = (parentsOf: Map<string, Set<string>>): Map<string, Set<string>> => {
+    const childrenOf = new Map<string, Set<string>>();
+    const add = (parentId: string, childId: string) => {
+        if (!childrenOf.has(parentId)) childrenOf.set(parentId, new Set());
+        childrenOf.get(parentId)!.add(childId);
+    };
+    Array.from(parentsOf.entries()).forEach(([childId, parents]) => {
+        Array.from(parents).forEach((parentId) => add(parentId, childId));
+    });
+    return childrenOf;
+};
+
+/** BFS down through childrenOf; returns distance from memberId to each descendant (dist 0 = self). */
+const getDescendantDistances = (memberId: string, childrenOf: Map<string, Set<string>>): Map<string, number> => {
+    const dists = new Map<string, number>();
+    const queue: { id: string; d: number }[] = [{ id: memberId, d: 0 }];
+    while (queue.length > 0) {
+        const item = queue.shift()!;
+        if (dists.has(item.id)) continue;
+        dists.set(item.id, item.d);
+        Array.from(childrenOf.get(item.id) ?? []).forEach((childId) => {
+            if (!dists.has(childId)) queue.push({ id: childId, d: item.d + 1 });
+        });
+    }
+    return dists;
+};
+
+const ORDINALS = ["", "First", "Second", "Third", "Fourth", "Fifth",
+    "Sixth", "Seventh", "Eighth", "Ninth", "Tenth"];
+
+const removedSuffix = (n: number): string => {
+    if (n === 0) return "";
+    if (n === 1) return " once removed";
+    if (n === 2) return " twice removed";
+    return ` ${n} times removed`;
+};
+
+/** Label for a spouse's ancestor at depth `dist` (2 = "Grandfather-in-law", 3 = "Great-grandfather-in-law", …). */
+const inLawAncestorLabel = (dist: number, sex: RelativeSex): string => {
+    const base = sex === "F" ? "grandmother-in-law" : "grandfather-in-law";
+    const label = "Great-".repeat(dist - 2) + base;
+    return label.charAt(0).toUpperCase() + label.slice(1);
+};
+
+/** Label for a grandchild's spouse at depth `dist` (2 = "Grandson-in-law", 3 = "Great-grandson-in-law", …). */
+const inLawDescendantLabel = (dist: number, sex: RelativeSex): string => {
+    const base = sex === "F" ? "granddaughter-in-law" : "grandson-in-law";
+    const label = "Great-".repeat(dist - 2) + base;
+    return label.charAt(0).toUpperCase() + label.slice(1);
+};
+
+/** Label for a cousin relationship (cousins are gender-neutral in English). */
+export const cousinLabel = (degree: number, removed: number): string => {
+    const ord = degree <= 10 ? ORDINALS[degree] : `${degree}th`;
+    return `${ord} cousin${removedSuffix(removed)}`;
+};
+
+/** Label for an uncle/aunt or great-uncle/aunt. `greats` = 0 for plain uncle/aunt. */
+export const uncleAuntLabel = (greats: number, sex: RelativeSex): string => {
+    const base = sex === "F" ? "aunt" : "uncle";
+    const label = "Great-".repeat(greats) + base;
+    return label.charAt(0).toUpperCase() + label.slice(1);
+};
+
+/** Label for a nephew/niece or great-nephew/niece. `greats` = 0 for plain nephew/niece. */
+export const nephewNieceLabel = (greats: number, sex: RelativeSex): string => {
+    const base = sex === "F" ? "niece" : "nephew";
+    const label = "Great-".repeat(greats) + base;
+    return label.charAt(0).toUpperCase() + label.slice(1);
+};
+
+/**
+ * Derives ALL transitive/implied relationships from the full relationship graph:
+ * - Grandparent/grandchild chains (with "Great-" prefix per extra generation)
+ * - Uncle/aunt (parent's sibling), great-uncle/aunt (grandparent's sibling), etc.
+ * - Nephew/niece (sibling's child), great-nephew/niece, etc.
+ * - Cousin relationships (1st, 2nd, … + once/twice removed)
+ * - In-law relationships (parent-in-law, sibling-in-law)
+ *
+ * All returned rows are label-only: `relationType` is `"Relative"` so they
+ * never draw edges or affect layout. Rows already in `relations` are skipped.
+ */
+export const deriveAllRelations = (
+    relations: StoredRelation[],
+    sexOf: (memberId: string) => RelativeSex | undefined
+): DerivedRow[] => {
+    const parentsOf = buildParentsMap(relations);
+    const directParentsOf = buildDirectParentsMap(relations);
+    const siblingsOf = buildSiblingsMap(relations, parentsOf);
+    const spousesOf = buildSpousesMap(relations);
+
+    // Direct (non-step) sibling pairs — used to detect step paths through siblings.
+    const directSibPairs = new Set<string>();
+    relations.forEach((rel) => {
+        const type = storedRelationType(rel);
+        if (type === "Brother" || type === "Sister") {
+            directSibPairs.add([rel.fromId, rel.toId].sort().join("|"));
+        }
+    });
+
+    const existing = new Set(relations.map((r) => `${r.fromId}-${r.toId}`));
+    const derived: DerivedRow[] = [];
+    const seen = new Set<string>();
+
+    const pushRow = (fromId: string, toId: string, prettyType: string, pathHasStep: boolean) => {
+        const key = `${fromId}-${toId}`;
+        if (existing.has(key) || seen.has(key)) return;
+        seen.add(key);
+        derived.push({ fromId, toId, relationType: "Relative", prettyType, isInnerFamily: false, pathHasStep });
+    };
+
+    const allMembers = new Set<string>();
+    relations.forEach((rel) => { allMembers.add(rel.fromId); allMembers.add(rel.toId); });
+
+    // 1. Ancestor chains: grandparent, great-grandparent, etc.
+    Array.from(allMembers).forEach((descendantId) => {
+        const ancestorInfo = getAncestorInfo(descendantId, parentsOf, directParentsOf);
+        Array.from(ancestorInfo.entries()).forEach(([ancestorId, { dist, allDirect }]) => {
+            if (dist < 2) return;
+            const pathHasStep = !allDirect;
+            pushRow(ancestorId, descendantId, descendantLabel(dist, sexOf(descendantId) ?? "M"), pathHasStep);
+            pushRow(descendantId, ancestorId, ancestorLabel(dist, sexOf(ancestorId) ?? "M"), pathHasStep);
+        });
+    });
+
+    // 2. Uncle/aunt (parent's sibling) and great-uncle/aunt (grandparent's sibling), etc.
+    //    For each ancestor at distance D, each sibling of that ancestor is a
+    //    (D-1)-"greats" uncle/aunt of the person (0 greats = plain uncle/aunt).
+    Array.from(allMembers).forEach((personId) => {
+        const ancestorInfo = getAncestorInfo(personId, parentsOf, directParentsOf);
+        Array.from(ancestorInfo.entries()).forEach(([ancestorId, { dist, allDirect }]) => {
+            if (dist === 0) return;
+            Array.from(siblingsOf.get(ancestorId) ?? []).forEach((siblingId) => {
+                if (siblingId === personId) return;
+                const greats = dist - 1;
+                const sibIsDirectSibling = directSibPairs.has([ancestorId, siblingId].sort().join("|"));
+                const pathHasStep = !allDirect || !sibIsDirectSibling;
+                pushRow(personId, siblingId, uncleAuntLabel(greats, sexOf(siblingId) ?? "M"), pathHasStep);
+                pushRow(siblingId, personId, nephewNieceLabel(greats, sexOf(personId) ?? "M"), pathHasStep);
+            });
+        });
+    });
+
+    // 3. Cousin relationships via Most Recent Common Ancestor (MRCA).
+    //    Both parties must be ≥ 2 generations below the MRCA (otherwise it's a
+    //    parent/child or uncle/nephew situation already handled above).
+    //    degree = min(distA, distB) - 1; removed = |distA - distB|.
+    const allMembersArr = Array.from(allMembers);
+    for (let i = 0; i < allMembersArr.length; i++) {
+        const a = allMembersArr[i];
+        const ancestorInfoA = getAncestorInfo(a, parentsOf, directParentsOf);
+        for (let j = i + 1; j < allMembersArr.length; j++) {
+            const b = allMembersArr[j];
+            const ancestorInfoB = getAncestorInfo(b, parentsOf, directParentsOf);
+            let bestDistA = Infinity, bestDistB = Infinity, bestAllDirect = true;
+            Array.from(ancestorInfoA.entries()).forEach(([ancestor, { dist: dA, allDirect: adA }]) => {
+                if (dA < 2) return;
+                const infoB = ancestorInfoB.get(ancestor);
+                if (!infoB || infoB.dist < 2) return;
+                if (dA + infoB.dist < bestDistA + bestDistB) {
+                    bestDistA = dA; bestDistB = infoB.dist; bestAllDirect = adA && infoB.allDirect;
+                }
+            });
+            if (bestDistA === Infinity) continue;
+            const label = cousinLabel(Math.min(bestDistA, bestDistB) - 1, Math.abs(bestDistA - bestDistB));
+            const pathHasStep = !bestAllDirect;
+            pushRow(a, b, label, pathHasStep);
+            pushRow(b, a, label, pathHasStep);
+        }
+    }
+
+    // 4. In-law relationships (pathHasStep=false — in-laws are their own category).
+    Array.from(allMembers).forEach((personId) => {
+        Array.from(spousesOf.get(personId) ?? []).forEach((spouseId) => {
+            // Walk the spouse's full ancestor chain:
+            //   dist=1 → Father/Mother-in-law + Son/Daughter-in-law (canonical types)
+            //   dist≥2 → Grandfather/Grandmother-in-law + Grandson/Granddaughter-in-law
+            const spouseAncestors = getAncestorDistances(spouseId, parentsOf);
+            Array.from(spouseAncestors.entries()).forEach(([ancestorId, dist]) => {
+                if (dist === 0) return;
+                const ancestorSex = sexOf(ancestorId) ?? "M";
+                const personSex = sexOf(personId) ?? "M";
+                if (dist === 1) {
+                    pushRow(personId, ancestorId, ancestorSex === "F" ? "Mother in law" : "Father in law", false);
+                    pushRow(ancestorId, personId, personSex === "F" ? "Daughter in law" : "Son in law", false);
+                } else {
+                    pushRow(personId, ancestorId, inLawAncestorLabel(dist, ancestorSex), false);
+                    pushRow(ancestorId, personId, inLawDescendantLabel(dist, personSex), false);
+                }
+            });
+            // Spouse's siblings → sibling-in-law.
+            Array.from(siblingsOf.get(spouseId) ?? []).forEach((sibInLawId) => {
+                if (sibInLawId === personId) return;
+                pushRow(personId, sibInLawId, (sexOf(sibInLawId) ?? "M") === "F" ? "Sister in law" : "Brother in law", false);
+                pushRow(sibInLawId, personId, (sexOf(personId) ?? "M") === "F" ? "Sister in law" : "Brother in law", false);
+            });
+        });
+        // Sibling's spouse → sibling-in-law (other direction).
+        Array.from(siblingsOf.get(personId) ?? []).forEach((siblingId) => {
+            Array.from(spousesOf.get(siblingId) ?? []).forEach((sibSpouseId) => {
+                if (sibSpouseId === personId) return;
+                pushRow(personId, sibSpouseId, (sexOf(sibSpouseId) ?? "M") === "F" ? "Sister in law" : "Brother in law", false);
+                pushRow(sibSpouseId, personId, (sexOf(personId) ?? "M") === "F" ? "Sister in law" : "Brother in law", false);
+            });
+        });
+    });
+
+    // 5. Spouse's children/descendants.
+    //    When P marries S, S's children become P's (step-)children; their spouses
+    //    become P's son/daughter-in-law; S's grandchildren become P's grandchildren.
+    //    pathHasStep=true on all these so the user can switch to the step variant.
+    const childrenOf = buildChildrenMap(parentsOf);
+    Array.from(allMembers).forEach((personId) => {
+        Array.from(spousesOf.get(personId) ?? []).forEach((spouseId) => {
+            const spouseDesc = getDescendantDistances(spouseId, childrenOf);
+            Array.from(spouseDesc.entries()).forEach(([descId, dist]) => {
+                if (dist === 0) return;
+                // Skip if personId is already a recorded parent of descId.
+                if (parentsOf.get(descId)?.has(personId)) return;
+                const descSex = sexOf(descId) ?? "M";
+                const personSex = sexOf(personId) ?? "M";
+                if (dist === 1) {
+                    // Direct child of spouse → son/daughter (step variant available).
+                    pushRow(personId, descId, descSex === "F" ? "Daughter" : "Son", true);
+                    pushRow(descId, personId, personSex === "F" ? "Mother" : "Father", true);
+                    // Child's spouses → son/daughter-in-law (step variant available for cascade).
+                    Array.from(spousesOf.get(descId) ?? []).forEach((childSpouseId) => {
+                        if (childSpouseId === personId || childSpouseId === spouseId) return;
+                        if (parentsOf.get(childSpouseId)?.has(personId)) return;
+                        const csSex = sexOf(childSpouseId) ?? "M";
+                        pushRow(personId, childSpouseId, csSex === "F" ? "Daughter in law" : "Son in law", true);
+                        pushRow(childSpouseId, personId, personSex === "F" ? "Mother in law" : "Father in law", true);
+                    });
+                } else {
+                    // Grandchild, great-grandchild, etc.
+                    pushRow(personId, descId, descendantLabel(dist, descSex), true);
+                    pushRow(descId, personId, ancestorLabel(dist, personSex), true);
+                }
+            });
+        });
     });
 
     return derived;

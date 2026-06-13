@@ -16,8 +16,13 @@ import {
     getInverseRelationType,
     isAutoInverseRelation,
     isInnerFamilyRelation,
-    deriveTransitiveRelations,
+    isRelationAParent,
+    deriveAllRelations,
+    getVariantFamily,
+    filterGroupsBySex,
+    buildSpousesMap,
     StoredRelation,
+    DerivedRow,
     RelativeSex
 } from '../tree/utils';
 import { buildEdgeId } from '../tree/buildEdges';
@@ -44,6 +49,30 @@ interface EditableRelationship {
     forwardType: RelationTypes;
     reverseType: RelationTypes;
     visual: boolean;
+}
+
+// Relationship types whose inferred suggestions default to drawing a graph edge.
+// Parent/child (and step/adoptive variants) + all spouse types.
+// Excludes in-law types, siblings, cousins, grandparents, etc.
+const DRAW_EDGE_DEFAULT_TYPES = new Set<string>([
+    "Father", "Mother", "Father (step)", "Mother (step)", "Step father", "Step mother", "Adoptive father", "Adoptive mother",
+    "Son", "Daughter", "Son (step)", "Daughter (step)", "Step son", "Step daughter", "Adopted son", "Adopted daughter",
+    "Husband", "Wife", "Husband (divorced)", "Wife (divorced)", "Common-Law Partner", "Have shared kids"
+]);
+
+// A paired derived relationship shown as a single checkbox in the confirmation step.
+// `rows` holds both directions (A→B and B→A) so they're always saved/skipped together.
+interface DerivedRelationSuggestion {
+    key: string;
+    fromId: string;
+    fromName: string;
+    toId: string;
+    toName: string;
+    prettyType: string;
+    rows: StoredRelation[];
+    checked: boolean;
+    forceDirectOnly: boolean; // true when every link in the inference path is direct — no step variants allowed
+    drawEdge: boolean;        // whether a graph edge should be drawn for this relation
 }
 
 function buildRelationPair(
@@ -127,6 +156,9 @@ const SlideInForm = React.forwardRef<SlideInFormHandle, SlideInFormProps>(({ mem
     const [isManageOpen, setIsManageOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [isEditRelationshipsOpen, setIsEditRelationshipsOpen] = useState(false);
+    const [isDerivedOpen, setIsDerivedOpen] = useState(false);
+    const [pendingDerived, setPendingDerived] = useState<DerivedRelationSuggestion[]>([]);
+    const postDerivedCallbackRef = React.useRef<(() => void) | null>(null);
     const [editingMember, setEditingMember] = useState<RawFamilyMember | null>(null);
     const [relationshipsMember, setRelationshipsMember] = useState<RawFamilyMember | null>(null);
     const [editableRelationships, setEditableRelationships] = useState<EditableRelationship[]>([]);
@@ -143,6 +175,13 @@ const SlideInForm = React.forwardRef<SlideInFormHandle, SlideInFormProps>(({ mem
 
     // Reset every right-side panel and its transient state.
     const closeAllPanels = React.useCallback(() => {
+        // If the derived confirmation was open, run the pending callback (treat as skip).
+        if (postDerivedCallbackRef.current) {
+            postDerivedCallbackRef.current();
+            postDerivedCallbackRef.current = null;
+        }
+        setIsDerivedOpen(false);
+        setPendingDerived([]);
         setIsOpen(false);
         setIsAddRelationshipOpen(false);
         setIsManageOpen(false);
@@ -156,7 +195,7 @@ const SlideInForm = React.forwardRef<SlideInFormHandle, SlideInFormProps>(({ mem
         setRelationshipCounter(0);
     }, []);
 
-    const anyPanelOpen = isOpen || isAddRelationshipOpen || isManageOpen || isEditOpen || isEditRelationshipsOpen;
+    const anyPanelOpen = isOpen || isAddRelationshipOpen || isManageOpen || isEditOpen || isEditRelationshipsOpen || isDerivedOpen;
 
     // Close the panels when clicking anywhere outside of them.
     useEffect(() => {
@@ -166,6 +205,8 @@ const SlideInForm = React.forwardRef<SlideInFormHandle, SlideInFormProps>(({ mem
         const handlePointerDown = (event: MouseEvent) => {
             const target = event.target as HTMLElement;
             if (panelsRef.current && !panelsRef.current.contains(target)) {
+                // Keep the derived confirmation open; the user must explicitly choose.
+                if (isDerivedOpen) return;
                 closeAllPanels();
             }
         };
@@ -173,7 +214,7 @@ const SlideInForm = React.forwardRef<SlideInFormHandle, SlideInFormProps>(({ mem
         // pointer events) cannot prevent the outside-click from being detected.
         document.addEventListener('mousedown', handlePointerDown, true);
         return () => document.removeEventListener('mousedown', handlePointerDown, true);
-    }, [anyPanelOpen, closeAllPanels]);
+    }, [anyPanelOpen, closeAllPanels, isDerivedOpen]);
     // Member ids that already have a direct relationship with the currently
     // selected member, so they can be hidden from the relationship picker.
     const existingRelatedIds = React.useMemo(() => {
@@ -191,24 +232,14 @@ const SlideInForm = React.forwardRef<SlideInFormHandle, SlideInFormProps>(({ mem
         return Array.from(related);
     }, [relations, selectedMember]);
 
-    // After the explicit parent/child link(s) have been persisted, recompute
-    // the implied generational relationships (grandparent/grandchild and
-    // deeper, with a "Great-" prefix per extra generation) and persist any new
-    // label-only rows. `submittedRows` are the rows just sent to the backend
-    // (in the in-memory `from`/`to` shape).
-    const persistDerivedRelations = React.useCallback(
-        async (submittedRows: FamilyRelation[]) => {
+    // After the main relationship(s) have been persisted, derive all implied
+    // relationships and show them to the user for confirmation. If there are none,
+    // or the user confirms/skips, `callback` is invoked (typically `onChange`).
+    const checkAndShowDerived = React.useCallback(
+        async (submittedRows: FamilyRelation[], callback: () => void) => {
             const sexById = new Map(familyMembers.map((m) => [m.id, m.data.sex] as const));
+            const nameById = new Map(familyMembers.map((m) => [m.id, m.data.title] as const));
             const sexOf = (id: string): RelativeSex | undefined => sexById.get(id);
-            // Build the up-to-date relationship set: existing rows plus the
-            // rows just submitted (normalized to the persisted fromId/toId shape).
-            const submittedStored: StoredRelation[] = submittedRows.map((row) => ({
-                fromId: row.from,
-                toId: row.to,
-                relationType: row.relationType,
-                prettyType: row.prettyType,
-                isInnerFamily: row.isInnerFamily
-            }));
             const allRelations: StoredRelation[] = [
                 ...relations.map((rel) => ({
                     fromId: rel.fromId,
@@ -217,22 +248,255 @@ const SlideInForm = React.forwardRef<SlideInFormHandle, SlideInFormProps>(({ mem
                     prettyType: rel.prettyType,
                     isInnerFamily: rel.isInnerFamily
                 })),
-                ...submittedStored
-            ];
-            const derived = deriveTransitiveRelations(allRelations, sexOf);
-            if (derived.length === 0) {
-                return;
-            }
-            await submitRelationships(
-                derived.map((row) => ({
-                    id: `${row.fromId}-${row.toId}`,
-                    from: row.fromId,
-                    to: row.toId,
+                ...submittedRows.map((row) => ({
+                    fromId: row.from,
+                    toId: row.to,
                     relationType: row.relationType,
                     prettyType: row.prettyType,
                     isInnerFamily: row.isInnerFamily
                 }))
+            ];
+            const derived = deriveAllRelations(allRelations, sexOf);
+            // Group forward + reverse rows into a single checkbox per pair so the
+            // user doesn't see both "A is B's Grandson" and "B is A's Grandfather".
+            const usedKeys = new Set<string>();
+            const suggestions: DerivedRelationSuggestion[] = [];
+            derived.forEach((row) => {
+                const rowKey = `${row.fromId}-${row.toId}`;
+                if (usedKeys.has(rowKey)) return;
+                usedKeys.add(rowKey);
+                const reverseKey = `${row.toId}-${row.fromId}`;
+                const reverseRow = derived.find((r) => `${r.fromId}-${r.toId}` === reverseKey);
+                if (reverseRow) usedKeys.add(reverseKey);
+                suggestions.push({
+                    key: rowKey,
+                    fromId: row.fromId,
+                    fromName: nameById.get(row.fromId) ?? row.fromId,
+                    toId: row.toId,
+                    toName: nameById.get(row.toId) ?? row.toId,
+                    prettyType: row.prettyType,
+                    rows: reverseRow ? [row, reverseRow] : [row],
+                    checked: true,
+                    forceDirectOnly: !row.pathHasStep,
+                    drawEdge: DRAW_EDGE_DEFAULT_TYPES.has(row.prettyType)
+                });
+            });
+
+            // Co-parent spouse suggestions: when a newly added parent joins a child who
+            // already has another parent and those two parents have no existing link,
+            // suggest a Husband/Wife relationship between them.
+            for (const submitted of submittedRows) {
+                const subType = (submitted.prettyType || submitted.relationType) as RelationTypes;
+                if (!isRelationAParent(subType)) continue;
+                const childId = submitted.from;
+                const newParentId = submitted.to;
+
+                const existingCoParents = allRelations
+                    .filter((r) => {
+                        const t = (r.prettyType || r.relationType) as RelationTypes;
+                        // Exclude in-law types — "Father in law" passes isRelationAParent
+                        // but is not a co-parent of the child.
+                        const isInLaw = t === "Father in law" || t === "Mother in law" ||
+                            t === "Step father in law" || t === "Step mother in law";
+                        return r.fromId === childId && isRelationAParent(t) && !isInLaw && r.toId !== newParentId;
+                    })
+                    .map((r) => r.toId);
+
+                for (const existingParentId of existingCoParents) {
+                    const hasRelation = allRelations.some(
+                        (r) =>
+                            (r.fromId === newParentId && r.toId === existingParentId) ||
+                            (r.fromId === existingParentId && r.toId === newParentId)
+                    );
+                    if (hasRelation) continue;
+
+                    const pairKey = `${newParentId}-${existingParentId}`;
+                    const reversePairKey = `${existingParentId}-${newParentId}`;
+                    if (usedKeys.has(pairKey) || usedKeys.has(reversePairKey)) continue;
+                    usedKeys.add(pairKey);
+                    usedKeys.add(reversePairKey);
+
+                    const existingParentSex = sexOf(existingParentId);
+                    const newParentSex = sexOf(newParentId);
+                    const spouseTypeForExisting: RelationTypes = existingParentSex === 'F' ? 'Wife' : 'Husband';
+                    const spouseTypeForNew: RelationTypes = newParentSex === 'F' ? 'Wife' : 'Husband';
+
+                    suggestions.push({
+                        key: pairKey,
+                        fromId: newParentId,
+                        fromName: nameById.get(newParentId) ?? newParentId,
+                        toId: existingParentId,
+                        toName: nameById.get(existingParentId) ?? existingParentId,
+                        prettyType: spouseTypeForExisting,
+                        rows: [
+                            {
+                                fromId: newParentId,
+                                toId: existingParentId,
+                                relationType: spouseTypeForExisting,
+                                prettyType: spouseTypeForExisting,
+                                isInnerFamily: false
+                            },
+                            {
+                                fromId: existingParentId,
+                                toId: newParentId,
+                                relationType: spouseTypeForNew,
+                                prettyType: spouseTypeForNew,
+                                isInnerFamily: false
+                            }
+                        ],
+                        checked: true,
+                        forceDirectOnly: false,
+                        drawEdge: true
+                    });
+                }
+            }
+
+            if (suggestions.length === 0) {
+                callback();
+                return;
+            }
+            setPendingDerived(suggestions);
+            postDerivedCallbackRef.current = callback;
+            setIsDerivedOpen(true);
+        },
+        [familyMembers, relations]
+    );
+
+    const handleConfirmDerived = React.useCallback(async () => {
+        const toSave = pendingDerived
+            .filter((s) => s.checked)
+            .flatMap((s) =>
+                s.rows.map((r) => {
+                    if (!s.drawEdge) return r;
+                    // When drawing a graph edge, upgrade relationType from "Relative" to
+                    // the actual canonical type so buildParentsChildrenStructs and
+                    // buildCouplesEdges pick it up for visual rendering.
+                    const actualType = (ALL_RELATION_TYPES as string[]).includes(r.prettyType)
+                        ? (r.prettyType as RelationTypes)
+                        : ('Relative' as RelationTypes);
+                    return { ...r, relationType: actualType, isInnerFamily: isInnerFamilyRelation(actualType) };
+                })
             );
+        if (toSave.length > 0) {
+            await submitRelationships(
+                toSave.map((r) => ({
+                    id: `${r.fromId}-${r.toId}`,
+                    from: r.fromId,
+                    to: r.toId,
+                    relationType: r.relationType,
+                    prettyType: r.prettyType,
+                    isInnerFamily: r.isInnerFamily
+                }))
+            );
+        }
+        setIsDerivedOpen(false);
+        setPendingDerived([]);
+        const cb = postDerivedCallbackRef.current;
+        postDerivedCallbackRef.current = null;
+        cb?.();
+    }, [pendingDerived]);
+
+    const handleSkipDerived = React.useCallback(() => {
+        setIsDerivedOpen(false);
+        setPendingDerived([]);
+        const cb = postDerivedCallbackRef.current;
+        postDerivedCallbackRef.current = null;
+        cb?.();
+    }, []);
+
+    // When the user picks a different variant type (e.g. Uncle → Uncle (step))
+    // in the suggestion panel, update both the primary row and the paired reverse
+    // row in real time so they stay consistent. Also cascades: when a son/daughter
+    // relationship flips to step, in-law and grandchild suggestions update too.
+    const handleSuggestionTypeChange = React.useCallback(
+        (key: string, newPrimaryType: string) => {
+            const sexById = new Map(familyMembers.map((m) => [m.id, m.data.sex] as const));
+
+            const isStepType = (t: string) => /\(step\)/i.test(t) || /^step /i.test(t);
+            const newIsStep = isStepType(newPrimaryType);
+
+            // Variant families for detecting child-type changes.
+            const sonVars = getVariantFamily("Son") as string[];
+            const daughterVars = getVariantFamily("Daughter") as string[];
+            const fatherVars = getVariantFamily("Father") as string[];
+            const motherVars = getVariantFamily("Mother") as string[];
+            const isChildVariant = (t: string) => sonVars.includes(t) || daughterVars.includes(t);
+
+            // Build spouses map for in-law cascade.
+            const spousesOf = buildSpousesMap(relations);
+
+            // Build childrenOf map for grandchild cascade.
+            const childrenOf = new Map<string, Set<string>>();
+            relations.forEach((r) => {
+                const t = r.relationType as string;
+                if (fatherVars.includes(t) || motherVars.includes(t)) {
+                    // r.toId is the parent of r.fromId
+                    if (!childrenOf.has(r.toId)) childrenOf.set(r.toId, new Set());
+                    childrenOf.get(r.toId)!.add(r.fromId);
+                } else if (sonVars.includes(t) || daughterVars.includes(t)) {
+                    // r.toId is the child of r.fromId
+                    if (!childrenOf.has(r.fromId)) childrenOf.set(r.fromId, new Set());
+                    childrenOf.get(r.fromId)!.add(r.toId);
+                }
+            });
+
+            // BFS to collect all descendants of a person (excluding self).
+            const getDescendants = (personId: string): Set<string> => {
+                const result = new Set<string>();
+                const queue = Array.from(childrenOf.get(personId) ?? []);
+                while (queue.length > 0) {
+                    const id = queue.shift()!;
+                    if (result.has(id)) continue;
+                    result.add(id);
+                    Array.from(childrenOf.get(id) ?? []).forEach((c) => queue.push(c));
+                }
+                return result;
+            };
+
+            // Apply a new prettyType to a suggestion and recompute its reverse row.
+            const applyTypeChange = (s: DerivedRelationSuggestion, newType: string): DerivedRelationSuggestion => {
+                const newRows = s.rows.map((row) => {
+                    const isPrimary = `${row.fromId}-${row.toId}` === s.key;
+                    if (isPrimary) return { ...row, prettyType: newType };
+                    const reverseSex = sexById.get(row.toId) ?? "M";
+                    const newInverse =
+                        getInverseRelationType(newType as RelationTypes, reverseSex as RelativeSex) ?? newType;
+                    return { ...row, prettyType: newInverse };
+                });
+                return { ...s, prettyType: newType, rows: newRows, drawEdge: DRAW_EDGE_DEFAULT_TYPES.has(newType) };
+            };
+
+            // Toggle step on/off for a suggestion using its variant family.
+            const cascadeStep = (s: DerivedRelationSuggestion, makeStep: boolean): DerivedRelationSuggestion => {
+                const variants = getVariantFamily(s.prettyType) as string[];
+                if (variants.length <= 1) return s;
+                const newType = makeStep
+                    ? variants.find((v) => isStepType(v)) ?? s.prettyType
+                    : variants.find((v) => !isStepType(v)) ?? s.prettyType;
+                return applyTypeChange(s, newType);
+            };
+
+            setPendingDerived((prev) => {
+                const changed = prev.find((s) => s.key === key);
+                const afterPrimary = prev.map((s) => (s.key === key ? applyTypeChange(s, newPrimaryType) : s));
+
+                // Only cascade when a son/daughter type changes.
+                if (!changed || !isChildVariant(newPrimaryType)) return afterPrimary;
+
+                const childId = changed.toId;   // e.g. "sautil"
+                const parentId = changed.fromId; // e.g. "maimun"
+                const childSpouses = spousesOf.get(childId) ?? new Set<string>();
+                const childDescendants = getDescendants(childId);
+
+                return afterPrimary.map((s) => {
+                    if (s.key === key || s.fromId !== parentId) return s;
+                    // In-law: toId is a spouse of the child.
+                    if (childSpouses.has(s.toId)) return cascadeStep(s, newIsStep);
+                    // Grandchild/descendant: toId is a descendant of the child.
+                    if (childDescendants.has(s.toId)) return cascadeStep(s, newIsStep);
+                    return s;
+                });
+            });
         },
         [familyMembers, relations]
     );
@@ -290,13 +554,16 @@ const SlideInForm = React.forwardRef<SlideInFormHandle, SlideInFormProps>(({ mem
     const handleSubmitRelationship = async (relationships: FamilyRelation[]) => {
         if (relationships.length > 0) {
             await submitRelationships(relationships);
-            await persistDerivedRelations(relationships);
         }
         setRelationshipFields([]);
         setRelationshipCounter(0);
         setSelectedMember(null);
         handleCloseRel();
-        onChange?.();
+        if (relationships.length > 0) {
+            await checkAndShowDerived(relationships, () => onChange?.());
+        } else {
+            onChange?.();
+        }
     }
 
     const handleOpenManage = () => {
@@ -413,8 +680,6 @@ const SlideInForm = React.forwardRef<SlideInFormHandle, SlideInFormProps>(({ mem
             return;
         }
         const anchorId = relationshipsMember.id;
-        // Re-write each relationship: remove the existing pair (both
-        // directions) and re-add it with the chosen type/visibility.
         const submitted: FamilyRelation[] = [];
         for (const rel of editableRelationships) {
             await deleteRelationshipApi(anchorId, rel.relativeId);
@@ -422,11 +687,10 @@ const SlideInForm = React.forwardRef<SlideInFormHandle, SlideInFormProps>(({ mem
             await submitRelationships(pair);
             submitted.push(...pair);
         }
-        await persistDerivedRelations(submitted);
         setIsEditRelationshipsOpen(false);
         setRelationshipsMember(null);
         setEditableRelationships([]);
-        onChange?.();
+        await checkAndShowDerived(submitted, () => onChange?.());
     };
 
     const handleCancelEditRelationships = () => {
@@ -641,6 +905,84 @@ const SlideInForm = React.forwardRef<SlideInFormHandle, SlideInFormProps>(({ mem
                         <AppButton label={'Save'} onClick={handleSaveRelationships} primary={true} />
                     )}
                     <AppButton label={'Close'} onClick={handleCancelEditRelationships} />
+                </div>
+            </div>
+            <div className={`slide-in-form ${isDerivedOpen ? 'open' : ''}`} style={{ display: 'flex', flexDirection: 'column', padding: '10px', overflowY: 'auto' }}>
+                <h2>Suggested Relationships</h2>
+                <p style={{ fontSize: '0.875rem', color: '#666', marginBottom: '12px' }}>
+                    Based on the relationship you just added, these implied relationships were found.
+                    Uncheck any you'd like to skip.
+                </p>
+                <ul className="derived-relations-list" style={{ listStyle: 'none', padding: 0, margin: '0 0 12px 0' }}>
+                    {pendingDerived.map((suggestion) => {
+                        const variants = getVariantFamily(suggestion.prettyType);
+                        const toSex = familyMembers.find((m) => m.id === suggestion.toId)?.data.sex;
+                        const sexFiltered = variants.length > 1
+                            ? filterGroupsBySex([{ label: '', options: variants }], toSex)[0]?.options ?? variants
+                            : variants;
+                        // Drop step variants when the entire path is made of direct links.
+                        const isStepVariant = (v: string) => /\(step\)/i.test(v) || /^step /i.test(v);
+                        const filteredVariants = suggestion.forceDirectOnly
+                            ? sexFiltered.filter((v) => !isStepVariant(v))
+                            : sexFiltered;
+                        return (
+                            <li key={suggestion.key} style={{ padding: '6px 0', borderBottom: '1px solid #eee' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={suggestion.checked}
+                                        onChange={(e) =>
+                                            setPendingDerived((prev) =>
+                                                prev.map((s) =>
+                                                    s.key === suggestion.key ? { ...s, checked: e.target.checked } : s
+                                                )
+                                            )
+                                        }
+                                        style={{ flexShrink: 0 }}
+                                    />
+                                    <span>
+                                        <strong>{suggestion.toName}</strong> is <strong>{suggestion.fromName}</strong>'s
+                                    </span>
+                                    {filteredVariants.length > 1 ? (
+                                        <select
+                                            className="form-input"
+                                            value={suggestion.prettyType}
+                                            style={{ width: 'auto', minWidth: '140px' }}
+                                            onChange={(e) => handleSuggestionTypeChange(suggestion.key, e.target.value)}
+                                        >
+                                            {filteredVariants.map((v) => (
+                                                <option key={v} value={v}>{v}</option>
+                                            ))}
+                                        </select>
+                                    ) : (
+                                        <em>{suggestion.prettyType}</em>
+                                    )}
+                                </div>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '3px', marginLeft: '24px', fontSize: '0.8rem', color: '#555', cursor: 'pointer' }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={suggestion.drawEdge}
+                                        onChange={(e) =>
+                                            setPendingDerived((prev) =>
+                                                prev.map((s) =>
+                                                    s.key === suggestion.key ? { ...s, drawEdge: e.target.checked } : s
+                                                )
+                                            )
+                                        }
+                                    />
+                                    Show in graph
+                                </label>
+                            </li>
+                        );
+                    })}
+                </ul>
+                <div className="form-group">
+                    <AppButton
+                        label={`Save Selected (${pendingDerived.filter((s) => s.checked).length})`}
+                        onClick={handleConfirmDerived}
+                        primary={true}
+                    />
+                    <AppButton label={'Skip All'} onClick={handleSkipDerived} />
                 </div>
             </div>
         </div>

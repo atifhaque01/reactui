@@ -5,8 +5,8 @@ import { RawFamilyMember } from '../utils';
 import { FamilyRelation, RelationTypes } from '../tree/types';
 import { buildEdgeId } from '../tree/buildEdges';
 import {
-    RELATION_TYPE_GROUPS,
-    relationGroupsForSex,
+    DIRECT_RELATION_TYPE_GROUPS,
+    filterGroupsBySex,
     getInverseRelationType,
     isAutoInverseRelation,
     isInnerFamilyRelation,
@@ -139,7 +139,7 @@ function resolveReverseType(
  */
 const RelationTypeOptions: React.FC<{ sex?: RelativeSex }> = ({ sex }) => (
     <>
-        {(sex ? relationGroupsForSex(sex) : RELATION_TYPE_GROUPS).map((group) => (
+        {filterGroupsBySex(DIRECT_RELATION_TYPE_GROUPS, sex).map((group) => (
             <optgroup key={group.label} label={group.label}>
                 {group.options.map((option) => (
                     <option key={option} value={option}>
