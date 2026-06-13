@@ -1,5 +1,5 @@
 # Stage 1: build the React app
-FROM cgr.dev/chainguard/node:22-dev AS builder
+FROM node:22-slim AS builder
 WORKDIR /app
 
 COPY package*.json ./
@@ -15,7 +15,8 @@ ENV REACT_APP_API_BASE_URL=$REACT_APP_API_BASE_URL
 RUN npm run build
 
 # Stage 2: serve with nginx
-FROM cgr.dev/chainguard/nginx:latest
+FROM nginx:stable-alpine
+RUN apk upgrade --no-cache
 COPY --from=builder /app/build /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
